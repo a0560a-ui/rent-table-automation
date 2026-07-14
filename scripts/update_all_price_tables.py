@@ -148,6 +148,7 @@ def main():
     parser.add_argument("--report-dir", type=Path, default=PROJECT_ROOT / "reports")
     parser.add_argument("--max-slots", type=int, default=MAX_FIXED_PAGE_SLOTS)
     parser.add_argument("--dry-run", action="store_true", help="ImageKitへアップロードせず画像生成と検証だけ行う")
+    parser.add_argument("--allow-partial", action="store_true", help="一部物件が失敗しても成功物件の公開処理を継続する")
     args = parser.parse_args()
 
     all_rows = []
@@ -156,7 +157,7 @@ def main():
     json_path, csv_path = _write_reports(all_rows, args.report_dir)
     failures = [row for row in all_rows if row["status"] != "success"]
     print(json.dumps({"total": len(all_rows), "failed": len(failures), "json": str(json_path), "csv": str(csv_path)}, ensure_ascii=False, indent=2))
-    if failures:
+    if failures and not args.allow_partial:
         raise SystemExit(1)
 
 

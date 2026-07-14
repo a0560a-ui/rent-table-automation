@@ -36,7 +36,7 @@ jobs:
         run: PYTHONPATH=. pytest -q
 
       - name: Update all price tables
-        run: PYTHONPATH=. python scripts/update_all_price_tables.py --brands DM DF --max-slots "$MAX_FIXED_PAGE_SLOTS"
+        run: PYTHONPATH=. python scripts/update_all_price_tables.py --brands DM DF --max-slots "$MAX_FIXED_PAGE_SLOTS" --allow-partial
 
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
