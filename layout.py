@@ -132,6 +132,7 @@ def calculate_layout(nt: int, floors: int, settings: dict | None = None) -> dict
     if template == "SPLIT":
         base = deepcopy(LAYOUT_PRESETS["COMPACT"])
         base["template"] = "SPLIT"
+        base["max_types"] = 9
     else:
         base = deepcopy(LAYOUT_PRESETS[template])
 

@@ -105,50 +105,69 @@ def _pages_by_type(prop, max_types):
 
 def needs_split(prop, layout):
     rooms = housing_rooms(prop)
-    floors = len(set(r[0] for r in rooms))
-    types = len(prop["types"])
-    fit, _ = fits_canvas(layout, types, floors)
-    return layout["template"] == "SPLIT" or not fit or _same_floor_type_multiple(rooms)
+    floors = len(_floor_range(rooms))
+    display_types = len(_expanded_type_order(prop, rooms))
+    raw_types = len(prop["types"])
+    fit, _ = fits_canvas(layout, display_types, floors)
+    return raw_types >= 10 or floors >= 17 or not fit
+
+
+def _valid_candidates(candidate_groups, max_columns):
+    valid = []
+    for pages in candidate_groups:
+        if not pages:
+            continue
+        fits = True
+        for page in pages:
+            page_layout = calculate_layout(
+                len(page["type_order"]),
+                len(page["floors"]),
+                {"layout_override": "SPLIT"},
+            )
+            fit, _ = fits_canvas(page_layout, len(page["type_order"]), len(page["floors"]))
+            if not fit or len(page["type_order"]) > max_columns:
+                fits = False
+                break
+        if fits:
+            valid.append(pages)
+    return valid
 
 
 def split_property_pages(prop, settings=None):
     settings = settings or prop.get("settings", {})
     rooms = housing_rooms(prop)
     floors_count = len(_floor_range(rooms))
-    type_count = len(prop["types"])
+    type_count = len(_expanded_type_order(prop, rooms))
     layout = calculate_layout(type_count, floors_count, settings)
     if not needs_split(prop, layout):
         return [make_single_page(prop)], layout
 
-    base_max_floors = int(settings.get("max_floors_per_page") or 8)
-    base_max_types = int(settings.get("max_types_per_page") or 6)
-    floor_pages = _pages_by_floor(prop, max(1, min(base_max_floors, 8)))
-    type_pages = _pages_by_type(prop, max(1, min(base_max_types, 6)))
+    base_max_floors = int(settings.get("max_floors_per_page") or 12)
+    base_max_types = int(settings.get("max_types_per_page") or 9)
+    max_floors = max(1, min(base_max_floors, 12))
+    max_type_columns = max(1, min(base_max_types, 9))
+    raw_type_count = len(_type_order(prop))
+    floor_candidates = [
+        _pages_by_floor(prop, size)
+        for size in range(max_floors, 0, -1)
+    ]
+    type_candidates = [
+        _pages_by_type(prop, size)
+        for size in range(raw_type_count, 0, -1)
+    ]
     direction = settings.get("split_direction", "AUTO")
 
     candidates = []
     if direction in {"AUTO", "FLOOR"}:
-        candidates.append(floor_pages)
+        candidates.extend(floor_candidates)
     if direction in {"AUTO", "TYPE"}:
-        candidates.append(type_pages)
+        candidates.extend(type_candidates)
 
-    def candidate_fits(pages):
-        for page in pages:
-            page_layout = calculate_layout(
-                len(page["type_order"]),
-                len(page["floors"]),
-                {"layout_override": "COMPACT"},
-            )
-            fit, _ = fits_canvas(page_layout, len(page["type_order"]), len(page["floors"]))
-            if not fit:
-                return False
-        return True
-
-    valid_candidates = [pages for pages in candidates if candidate_fits(pages)]
+    valid_candidates = _valid_candidates(candidates, max_type_columns)
     if valid_candidates:
         candidates = valid_candidates
     elif direction == "AUTO":
-        candidates = [type_pages]
+        candidates = type_candidates
 
     def score(pages):
         return (
@@ -161,7 +180,7 @@ def split_property_pages(prop, settings=None):
     page_layout = calculate_layout(
         max(len(page["type_order"]) for page in pages),
         max(len(page["floors"]) for page in pages),
-        {"layout_override": "COMPACT"},
+        {"layout_override": "SPLIT"},
     )
     page_layout["template"] = "SPLIT"
     return pages, page_layout
