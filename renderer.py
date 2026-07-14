@@ -32,7 +32,7 @@ from config import (
 )
 from pagination import split_property_pages
 from text_fitting import TextDoesNotFit, draw_centered, fit_font_to_width, load_font
-from validator import validate_property_data, validate_render_result
+from validator import housing_rooms, validate_property_data, validate_render_result
 
 
 def safe_filename(name):
@@ -218,8 +218,9 @@ def render_property_page(prop, page, layout, page_number=1, total_pages=1, issue
     y_cursor += 70
 
     page_rooms = page["rooms"]
-    vacant_count = sum(1 for r in page_rooms if r[4] == "空室")
-    occupied_count = sum(1 for r in page_rooms if r[4] == "満室")
+    all_rooms = housing_rooms(prop)
+    vacant_count = sum(1 for r in all_rooms if r[4] == "空室")
+    occupied_count = sum(1 for r in all_rooms if r[4] == "満室")
     total_recruit = vacant_count + occupied_count
     font_status = load_font(layout["font_status"], bold=True)
     status_text = f"空室状況   {vacant_count} / {total_recruit} 戸"
@@ -320,6 +321,7 @@ def render_property_page(prop, page, layout, page_number=1, total_pages=1, issue
         "layout": layout,
         "split_direction": page["split_direction"],
         "rendered_room_uids": rendered_room_uids,
+        "status_text": status_text,
         "final_y": footer_y,
         "min_font_used": metrics["min_font_used"] if metrics["min_font_used"] != 999 else layout["min_font"],
     }

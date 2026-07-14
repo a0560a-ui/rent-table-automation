@@ -26,6 +26,18 @@ def test_split_for_many_floors(tmp_path):
     assert len(rendered) == len(data["rooms"]) - 1
 
 
+def test_split_pages_use_whole_property_status_count(tmp_path):
+    data = make_sheets_data(10, 4)
+    for row in data["rooms"][1:]:
+        row[6] = "満室"
+    data["rooms"][1][6] = "空室"
+    data["rooms"][2][6] = "空室"
+    props = load_property_data_from_sheets(data)
+    pages = generate_image("P001", props, issue_date="2026年07月13日", output_dir=tmp_path)
+    assert len(pages) >= 2
+    assert {page["status_text"] for page in pages} == {"空室状況   2 / 40 戸"}
+
+
 def test_duplicate_same_floor_type_not_dropped(tmp_path):
     props = load_property_data_from_sheets(make_sheets_data(4, 5, duplicate_same_cell=True))
     pages = generate_image("P001", props, issue_date="2026年07月13日", output_dir=tmp_path)
