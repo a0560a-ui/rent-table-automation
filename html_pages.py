@@ -26,9 +26,8 @@ def build_property_page(
     html_path = page_dir / "index.html"
     title = f"{property_name} 募集賃料表"
     escaped_title = escape(title)
-    escaped_date = escape(issue_date or "")
     image_tags = "\n".join(
-        f'      <img src="{escape(url, quote=True)}" alt="{escape(property_name)} 募集賃料表 {index}" loading="lazy">'
+        f'    <img src="{escape(url, quote=True)}" alt="{escape(property_name)} 募集賃料表 {index}" loading="lazy">'
         for index, url in enumerate(image_urls, start=1)
     )
     html = f"""<!doctype html>
@@ -41,28 +40,11 @@ def build_property_page(
     body {{
       margin: 0;
       background: #f7f3ea;
-      color: #332f2a;
-      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", sans-serif;
     }}
     main {{
       width: min(100%, 1080px);
       margin: 0 auto;
       padding: 0;
-    }}
-    header {{
-      padding: 18px 18px 12px;
-      text-align: center;
-      font-weight: 700;
-    }}
-    h1 {{
-      margin: 0;
-      font-size: 20px;
-      line-height: 1.35;
-    }}
-    .date {{
-      margin-top: 6px;
-      color: #5c544a;
-      font-size: 13px;
     }}
     img {{
       display: block;
@@ -74,10 +56,6 @@ def build_property_page(
 </head>
 <body>
   <main>
-    <header>
-      <h1>{escaped_title}</h1>
-      <div class="date">{escaped_date}</div>
-    </header>
 {image_tags}
   </main>
 </body>

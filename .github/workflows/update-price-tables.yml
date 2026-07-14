@@ -20,6 +20,8 @@ jobs:
       IMAGEKIT_URL_ENDPOINT: ${{ secrets.IMAGEKIT_URL_ENDPOINT }}
       PUBLIC_SITE_BASE_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}
       MAX_FIXED_PAGE_SLOTS: "5"
+      RENT_TABLE_FONT_PATH: /usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc
+      RENT_TABLE_FONT_BOLD_PATH: /usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc
     steps:
       - name: Checkout
         uses: actions/checkout@v4

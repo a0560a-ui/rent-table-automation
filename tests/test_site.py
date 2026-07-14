@@ -17,3 +17,5 @@ def test_build_property_page_creates_one_url_page(tmp_path):
     assert result["image_count"] == 2
     assert "https://example.com/F008_01.png" in html
     assert "デュオフラッツ一之江East 募集賃料表" in html
+    assert "<header>" not in html
+    assert "<h1>" not in html

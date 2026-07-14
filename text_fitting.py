@@ -19,6 +19,9 @@ class TextDoesNotFit(ValueError):
 def _fallback_font_path(bold=False):
     candidates = [
         FONT_BOLD_PATH if bold else FONT_PATH,
+        "/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc" if bold else "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+        "/usr/share/fonts/opentype/noto/NotoSansCJKjp-Bold.otf" if bold else "/usr/share/fonts/opentype/noto/NotoSansCJKjp-Regular.otf",
+        "/usr/share/fonts/truetype/noto/NotoSansCJK-Bold.ttc" if bold else "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",
         "/System/Library/Fonts/ヒラギノ角ゴシック W3.ttc",
         "/System/Library/Fonts/Helvetica.ttc",
         "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
@@ -34,7 +37,7 @@ def load_font(size, bold=False):
     path = _fallback_font_path(bold)
     if path:
         return ImageFont.truetype(path, size)
-    return ImageFont.load_default()
+    raise RuntimeError("日本語フォントが見つかりません。Noto Sans CJKなどをインストールしてください")
 
 
 def text_width(draw, text, font):
