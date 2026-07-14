@@ -64,3 +64,20 @@ jobs:
         with:
           name: price-table-update-reports
           path: reports/
+
+      - name: Notify data errors
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          report_path = Path("reports/update_result.json")
+          rows = json.loads(report_path.read_text(encoding="utf-8"))
+          failures = [row for row in rows if row.get("status") != "success"]
+          if failures:
+              print("Price table update completed with data errors:")
+              for row in failures:
+                  print(f"- {row.get('brand')} {row.get('property_id')} {row.get('property_name')}: {row.get('error')}")
+              raise SystemExit(1)
+          print("All property price tables updated successfully.")
+          PY
