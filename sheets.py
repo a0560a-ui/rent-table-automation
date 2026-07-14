@@ -29,6 +29,11 @@ def resolve_spreadsheet_id(brand_or_id=None):
     raise RuntimeError("ブランド名、spreadsheet_id、または GOOGLE_SPREADSHEET_ID を指定してください")
 
 
+def normalize_type_key(value):
+    """タイプキーの見た目が同じ引用符ゆれを吸収する。"""
+    return str(value or "").strip().replace("'", "’").replace("‘", "’").replace("`", "’")
+
+
 def _authorize_gspread():
     try:
         import gspread
@@ -87,9 +92,9 @@ def load_property_data_from_sheets(sheets_data):
         prop_id = row[0]
         if prop_id not in properties:
             continue
-        type_key = row[1]
+        type_key = normalize_type_key(row[1])
         properties[prop_id]["types"][type_key] = (
-            row[6] if len(row) > 6 else row[1],
+            normalize_type_key(row[6]) if len(row) > 6 and row[6] else type_key,
             row[2] if len(row) > 2 else "",
             float(row[3]) if len(row) > 3 and row[3] else 0,
             int(float(row[4])) if len(row) > 4 and row[4] else 0,
@@ -106,7 +111,7 @@ def load_property_data_from_sheets(sheets_data):
             (
                 int(row[1]) if len(row) > 1 and str(row[1]).isdigit() else 0,
                 row[2] if len(row) > 2 else "",
-                row[3] if len(row) > 3 else "",
+                normalize_type_key(row[3]) if len(row) > 3 else "",
                 int(float(str(row[5]).replace(",", ""))) if len(row) > 5 and str(row[5]).replace(",", "").replace(".", "", 1).isdigit() else 0,
                 row[6] if len(row) > 6 else "空室",
                 row[8] if len(row) > 8 else "住戸",
