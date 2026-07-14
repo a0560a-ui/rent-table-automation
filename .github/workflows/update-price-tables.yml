@@ -14,9 +14,6 @@ permissions:
 jobs:
   update-price-tables:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: refactored_rent_generator
     env:
       GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
       IMAGEKIT_PRIVATE_KEY: ${{ secrets.IMAGEKIT_PRIVATE_KEY }}
@@ -47,7 +44,7 @@ jobs:
       - name: Upload GitHub Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: refactored_rent_generator/site
+          path: site
 
       - name: Deploy to GitHub Pages
         id: deployment
@@ -58,4 +55,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: price-table-update-reports
-          path: refactored_rent_generator/reports/
+          path: reports/
