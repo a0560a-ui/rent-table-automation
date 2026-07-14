@@ -1,0 +1,61 @@
+name: Update price table images
+
+on:
+  workflow_dispatch:
+  schedule:
+    # 05:00 JST every day
+    - cron: "0 20 * * *"
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  update-price-tables:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: refactored_rent_generator
+    env:
+      GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+      IMAGEKIT_PRIVATE_KEY: ${{ secrets.IMAGEKIT_PRIVATE_KEY }}
+      IMAGEKIT_URL_ENDPOINT: ${{ secrets.IMAGEKIT_URL_ENDPOINT }}
+      PUBLIC_SITE_BASE_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}
+      MAX_FIXED_PAGE_SLOTS: "5"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run tests
+        run: PYTHONPATH=. pytest -q
+
+      - name: Update all price tables
+        run: PYTHONPATH=. python scripts/update_all_price_tables.py --brands DM DF --max-slots "$MAX_FIXED_PAGE_SLOTS"
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload GitHub Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: refactored_rent_generator/site
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: price-table-update-reports
+          path: refactored_rent_generator/reports/
