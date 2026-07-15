@@ -95,6 +95,7 @@ def update_brand(brand, args):
                     args.site_dir,
                     base_url=args.site_base_url,
                     issue_date=args.issue_date,
+                    cache_buster=args.cache_buster,
                 )
             rendered_room_count = sum(len(page["rendered_room_uids"]) for page in pages)
             rows.append(
@@ -147,6 +148,7 @@ def main():
     parser.add_argument("--site-base-url", default=public_site_base_url() or "")
     parser.add_argument("--report-dir", type=Path, default=PROJECT_ROOT / "reports")
     parser.add_argument("--max-slots", type=int, default=MAX_FIXED_PAGE_SLOTS)
+    parser.add_argument("--cache-buster", default=datetime.now().strftime("%Y%m%d%H%M%S"))
     parser.add_argument("--dry-run", action="store_true", help="ImageKitへアップロードせず画像生成と検証だけ行う")
     parser.add_argument("--allow-partial", action="store_true", help="一部物件が失敗しても成功物件の公開処理を継続する")
     args = parser.parse_args()

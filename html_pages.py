@@ -12,6 +12,13 @@ def _join_url(base_url: str, path: str) -> str:
     return f"{base_url.rstrip('/')}/{path.lstrip('/')}"
 
 
+def _with_cache_buster(url: str, cache_buster: str | None) -> str:
+    if not cache_buster:
+        return url
+    separator = "&" if "?" in url else "?"
+    return f"{url}{separator}v={cache_buster}"
+
+
 def build_property_page(
     property_id: str,
     property_name: str,
@@ -19,6 +26,7 @@ def build_property_page(
     site_dir: Path,
     base_url: str | None = None,
     issue_date: str | None = None,
+    cache_buster: str | None = None,
 ) -> dict:
     """1物件1URLで表示するためのHTMLページを生成する。"""
     page_dir = site_dir / "rent-tables" / property_id
@@ -27,7 +35,7 @@ def build_property_page(
     title = f"{property_name} 募集賃料表"
     escaped_title = escape(title)
     image_tags = "\n".join(
-        f'    <img src="{escape(url, quote=True)}" alt="{escape(property_name)} 募集賃料表 {index}" loading="lazy">'
+        f'    <img src="{escape(_with_cache_buster(url, cache_buster), quote=True)}" alt="{escape(property_name)} 募集賃料表 {index}" loading="lazy">'
         for index, url in enumerate(image_urls, start=1)
     )
     html = f"""<!doctype html>
