@@ -88,6 +88,11 @@ LAYOUT_PRESETS = {
     },
 }
 
+SPLIT_ROW_H = 104
+SPLIT_HEADER_H = 72
+SPLIT_MAX_FLOORS = 14
+SPLIT_MAX_TYPES = 9
+
 HEADER_FIXED_HEIGHT = 40 + 50 + 70 + 60 + 50
 FOOTER_RESERVED_HEIGHT = 120
 
@@ -132,7 +137,10 @@ def calculate_layout(nt: int, floors: int, settings: dict | None = None) -> dict
     if template == "SPLIT":
         base = deepcopy(LAYOUT_PRESETS["COMPACT"])
         base["template"] = "SPLIT"
-        base["max_types"] = 9
+        base["max_types"] = SPLIT_MAX_TYPES
+        base["max_floors"] = SPLIT_MAX_FLOORS
+        base["header_h"] = SPLIT_HEADER_H
+        base["rowH"] = SPLIT_ROW_H
     else:
         base = deepcopy(LAYOUT_PRESETS[template])
 

@@ -142,9 +142,9 @@ def split_property_pages(prop, settings=None):
     if not needs_split(prop, layout):
         return [make_single_page(prop)], layout
 
-    base_max_floors = int(settings.get("max_floors_per_page") or 12)
+    base_max_floors = int(settings.get("max_floors_per_page") or 14)
     base_max_types = int(settings.get("max_types_per_page") or 9)
-    max_floors = max(1, min(base_max_floors, 12))
+    max_floors = max(1, min(base_max_floors, 14))
     max_type_columns = max(1, min(base_max_types, 9))
     raw_type_count = len(_type_order(prop))
     floor_candidates = [
