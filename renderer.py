@@ -91,16 +91,13 @@ def _draw_type_header(draw, x, y, width, height, label, madori, layout, metrics)
     if metrics is not None:
         metrics["min_font_used"] = min(metrics["min_font_used"], label_size, madori_size)
 
-    gap = 4
-    label_bbox = draw.textbbox((0, 0), label_text, font=label_font)
-    madori_bbox = draw.textbbox((0, 0), madori_text, font=madori_font)
-    total_h = (label_bbox[3] - label_bbox[1]) + gap + (madori_bbox[3] - madori_bbox[1])
-    top = y + (height - total_h) // 2
-    draw_centered(draw, x + width // 2, top + (label_bbox[3] - label_bbox[1]) // 2, label_text, label_font, COLOR_GREIGE_DARK)
+    label_center_y = y + int(height * 0.40)
+    madori_center_y = y + int(height * 0.64)
+    draw_centered(draw, x + width // 2, label_center_y, label_text, label_font, COLOR_GREIGE_DARK)
     draw_centered(
         draw,
         x + width // 2,
-        top + (label_bbox[3] - label_bbox[1]) + gap + (madori_bbox[3] - madori_bbox[1]) // 2,
+        madori_center_y,
         madori_text,
         madori_font,
         COLOR_GREIGE,
