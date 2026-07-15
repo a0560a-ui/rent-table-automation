@@ -54,6 +54,59 @@ def _fit_and_draw_centered(draw, x, y, text, max_size, min_size, max_width, colo
     return size
 
 
+def _draw_type_header(draw, x, y, width, height, label, madori, layout, metrics):
+    label_text = str(label or "")
+    madori_text = str(madori or "")
+    if not madori_text:
+        _fit_and_draw_centered(
+            draw,
+            x + width // 2,
+            y + height // 2,
+            label_text,
+            layout["font_header"],
+            layout["min_font"],
+            width - 8,
+            COLOR_GREIGE_DARK,
+            bold=True,
+            metrics=metrics,
+        )
+        return
+
+    label_font, label_size = fit_font_to_width(
+        draw,
+        label_text,
+        layout["font_header"],
+        layout["min_font"],
+        width - 8,
+        bold=True,
+    )
+    madori_font, madori_size = fit_font_to_width(
+        draw,
+        madori_text,
+        max(layout["min_font"], layout["font_header"] - 2),
+        layout["min_font"],
+        width - 8,
+        bold=True,
+    )
+    if metrics is not None:
+        metrics["min_font_used"] = min(metrics["min_font_used"], label_size, madori_size)
+
+    gap = 4
+    label_bbox = draw.textbbox((0, 0), label_text, font=label_font)
+    madori_bbox = draw.textbbox((0, 0), madori_text, font=madori_font)
+    total_h = (label_bbox[3] - label_bbox[1]) + gap + (madori_bbox[3] - madori_bbox[1])
+    top = y + (height - total_h) // 2
+    draw_centered(draw, x + width // 2, top + (label_bbox[3] - label_bbox[1]) // 2, label_text, label_font, COLOR_GREIGE_DARK)
+    draw_centered(
+        draw,
+        x + width // 2,
+        top + (label_bbox[3] - label_bbox[1]) + gap + (madori_bbox[3] - madori_bbox[1]) // 2,
+        madori_text,
+        madori_font,
+        COLOR_GREIGE,
+    )
+
+
 def _draw_text_block(draw, rect, text, max_size, min_size, text_color, fill_color, bold=False, metrics=None, outline=True):
     x1, y1, x2, y2 = rect
     if outline:
@@ -256,18 +309,7 @@ def render_property_page(prop, page, layout, page_number=1, total_pages=1, issue
         display_label = label if slot_count == 1 else f"{label}-{slot_index + 1}"
         x = table_x + floor_col_w + i * room_col_w
         draw.rectangle([x, header_y, x + room_col_w, header_y + header_h], fill=COLOR_GREIGE_LIGHT, outline=COLOR_BORDER, width=2)
-        _fit_and_draw_centered(
-            draw,
-            x + room_col_w // 2,
-            header_y + header_h // 2,
-            display_label,
-            layout["font_header"],
-            layout["min_font"],
-            room_col_w - 8,
-            COLOR_GREIGE_DARK,
-            bold=True,
-            metrics=metrics,
-        )
+        _draw_type_header(draw, x, header_y, room_col_w, header_h, display_label, madori, layout, metrics)
 
     data_y = header_y + header_h
     font_floor = load_font(layout["font_floor"], bold=True)
