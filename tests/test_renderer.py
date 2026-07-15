@@ -2,7 +2,7 @@ from pathlib import Path
 
 from PIL import Image
 
-from renderer import generate_image
+from renderer import display_rent_excluding_fee, generate_image
 from sheets import load_property_data_from_sheets
 
 from conftest import make_sheets_data
@@ -61,3 +61,7 @@ def test_deterministic_output(tmp_path):
     a = generate_image("P001", props, issue_date="2026年07月13日", output_dir=tmp_path / "a")
     b = generate_image("P001", props, issue_date="2026年07月13日", output_dir=tmp_path / "b")
     assert Path(a[0]["path"]).read_bytes() == Path(b[0]["path"]).read_bytes()
+
+
+def test_display_rent_excludes_common_service_fee():
+    assert display_rent_excluding_fee(200000, 10000) == 190000

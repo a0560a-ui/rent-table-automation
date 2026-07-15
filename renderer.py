@@ -155,6 +155,11 @@ def _room_band_fill(status):
     return COLOR_NON_RECRUIT_BG
 
 
+def display_rent_excluding_fee(rent, fee):
+    """シートの共益費込み賃料から、画像に表示する賃料本体を算出する。"""
+    return max(0, int(rent or 0) - int(fee or 0))
+
+
 def _draw_room(draw, x, y, room_col_w, row_h, room, type_info, layout, metrics, slot_index=0, slot_count=1):
     fl, room_no, typ, rent, status, _ = room
     label, madori, area, kyoeki, _ = type_info
@@ -185,7 +190,7 @@ def _draw_room(draw, x, y, room_col_w, row_h, room, type_info, layout, metrics, 
     main_center_y = (main_top + main_bottom) // 2
 
     if status == "空室":
-        price_text = f"¥{rent:,}"
+        price_text = f"¥{display_rent_excluding_fee(rent, kyoeki):,}"
         fee_text = f"共益費 ¥{kyoeki:,}"
         _fit_and_draw_centered(
             draw,
