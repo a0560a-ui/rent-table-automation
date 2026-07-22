@@ -50,6 +50,8 @@ def test_public_update_report_shows_failures_first_and_links(tmp_path):
     assert "募集賃料表 更新診断レポート" in html
     assert "P008" in html
     assert "未定義タイプ" in html
+    assert "全40住戸 表示完了" in html
+    assert "住戸表示: 0 / 18件（18件未表示）" in html
     assert html.index("P008") < html.index("F008")
     assert "https://example.com/rent-tables/F008/" in html
     assert json.loads((tmp_path / "reports" / "latest.json").read_text(encoding="utf-8"))[0]["property_id"] == "F008"

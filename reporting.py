@@ -50,6 +50,17 @@ def _row_sort_key(row: dict) -> tuple[int, str, str]:
     return failed_first, str(row.get("brand", "")), str(row.get("property_id", ""))
 
 
+def _room_display_label(row: dict) -> str:
+    input_count = int(row.get("input_room_count") or 0)
+    rendered_count = int(row.get("rendered_room_count") or 0)
+    missing_count = max(0, input_count - rendered_count)
+    if input_count == 0:
+        return "住戸データなし"
+    if missing_count == 0:
+        return f"全{input_count}住戸 表示完了"
+    return f"住戸表示: {rendered_count} / {input_count}件（{missing_count}件未表示）"
+
+
 def write_json_csv_reports(report_rows: list[dict], report_dir: Path) -> tuple[Path, Path]:
     report_dir.mkdir(parents=True, exist_ok=True)
     json_path = report_dir / "update_result.json"
@@ -213,7 +224,7 @@ def _html_table_row(row: dict) -> str:
     status = str(row.get("status", ""))
     page_url = str(row.get("page_url", ""))
     page_link = f'<a href="{escape(page_url, quote=True)}">開く</a>' if page_url else ""
-    room_counts = f'{escape(str(row.get("rendered_room_count", "")))} / {escape(str(row.get("input_room_count", "")))}'
+    room_counts = escape(_room_display_label(row))
     return f"""        <tr>
           <td><span class="badge {_status_class(status)}">{escape(_status_label(status))}</span></td>
           <td>{escape(str(row.get("brand", "")))}</td>
