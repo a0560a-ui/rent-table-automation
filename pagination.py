@@ -19,6 +19,15 @@ def _type_order(prop, type_keys=None):
     return items
 
 
+def _type_order_vacant_first(prop):
+    rooms = housing_rooms(prop)
+    vacant_types = {room[2] for room in rooms if room[4] == "空室"}
+    return sorted(
+        _type_order(prop),
+        key=lambda item: (item[0] not in vacant_types, item[1][4]),
+    )
+
+
 def _expanded_type_order(prop, rooms, type_keys=None):
     columns = []
     for type_key, type_info in _type_order(prop, type_keys):
@@ -89,7 +98,7 @@ def _pages_by_floor(prop, max_floors):
 def _pages_by_type(prop, max_types):
     rooms = housing_rooms(prop)
     pages = []
-    for type_group in _chunks(_type_order(prop), max_types):
+    for type_group in _chunks(_type_order_vacant_first(prop), max_types):
         type_set = {t[0] for t in type_group}
         page_rooms = [r for r in rooms if r[2] in type_set]
         pages.append(
