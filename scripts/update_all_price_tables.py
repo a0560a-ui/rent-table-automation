@@ -5,7 +5,6 @@
 from __future__ import annotations
 
 import argparse
-import csv
 import json
 from datetime import datetime
 from pathlib import Path
@@ -17,6 +16,7 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from config import MAX_FIXED_PAGE_SLOTS, OUTPUT_DIR, SITE_DIR, public_site_base_url  # noqa: E402
 from imagekit import upload_fixed_page_set  # noqa: E402
+from reporting import build_public_update_report, write_json_csv_reports  # noqa: E402
 from renderer import generate_image, render_placeholder_page  # noqa: E402
 from sheets import fetch_sheets_data, load_property_data_from_sheets  # noqa: E402
 from html_pages import build_property_page  # noqa: E402
@@ -35,30 +35,7 @@ def _target_property_ids(properties, requested_ids=None):
 
 
 def _write_reports(report_rows, report_dir):
-    report_dir.mkdir(parents=True, exist_ok=True)
-    json_path = report_dir / "update_result.json"
-    csv_path = report_dir / "update_result.csv"
-    json_path.write_text(json.dumps(report_rows, ensure_ascii=False, indent=2), encoding="utf-8")
-    fields = [
-        "brand",
-        "property_id",
-        "property_name",
-        "status",
-        "page_count",
-        "input_room_count",
-        "rendered_room_count",
-        "split_direction",
-        "template",
-        "error",
-        "urls",
-        "page_url",
-    ]
-    with csv_path.open("w", newline="", encoding="utf-8") as handle:
-        writer = csv.DictWriter(handle, fieldnames=fields)
-        writer.writeheader()
-        for row in report_rows:
-            writer.writerow({field: row.get(field, "") for field in fields})
-    return json_path, csv_path
+    return write_json_csv_reports(report_rows, report_dir)
 
 
 def update_brand(brand, args):
@@ -157,8 +134,26 @@ def main():
     for brand in args.brands:
         all_rows.extend(update_brand(brand, args))
     json_path, csv_path = _write_reports(all_rows, args.report_dir)
+    public_report = build_public_update_report(
+        all_rows,
+        args.site_dir,
+        base_url=args.site_base_url,
+        generated_at=datetime.now().strftime("%Y年%m月%d日 %H:%M"),
+    )
     failures = [row for row in all_rows if row["status"] != "success"]
-    print(json.dumps({"total": len(all_rows), "failed": len(failures), "json": str(json_path), "csv": str(csv_path)}, ensure_ascii=False, indent=2))
+    print(
+        json.dumps(
+            {
+                "total": len(all_rows),
+                "failed": len(failures),
+                "json": str(json_path),
+                "csv": str(csv_path),
+                "public_report": public_report,
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+    )
     if failures and not args.allow_partial:
         raise SystemExit(1)
 

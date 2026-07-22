@@ -50,7 +50,13 @@ def validate_property_data(prop_id, properties):
     used_types = set(r[2] for r in rooms if r[2])
     undefined_types = used_types - defined_types
     if undefined_types:
-        errors.append(f"❌ 未定義タイプ: {sorted(undefined_types)} がタイプ定義に存在しません")
+        missing = sorted(undefined_types)
+        errors.append(
+            "❌ 未定義タイプ: "
+            f"{missing} がタイプ定義に存在しません\n"
+            "対応: 該当ブランドの「タイプ定義」シートで、"
+            f"物件ID {prop_id} に上記タイプを追加してください。"
+        )
 
     vacant = sum(1 for r in rooms if r[4] == "空室")
     occupied = sum(1 for r in rooms if r[4] == "満室")
