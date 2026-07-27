@@ -341,12 +341,10 @@ def render_property_page(prop, page, layout, page_number=1, total_pages=1, issue
 
     footer_y = data_y + len(floors_set) * row_h + 40
     font_footnote = load_font(layout["font_footnote"])
-    if prop.get("footnote1"):
-        draw_centered(draw, W // 2, footer_y, prop["footnote1"], font_footnote, COLOR_GREIGE)
-        footer_y += 25
-    if prop.get("footnote2"):
-        draw_centered(draw, W // 2, footer_y, prop["footnote2"], font_footnote, COLOR_GREIGE)
-        footer_y += 25
+    for key in ("footnote1", "footnote2", "footnote3"):
+        if prop.get(key):
+            draw_centered(draw, W // 2, footer_y, prop[key], font_footnote, COLOR_GREIGE)
+            footer_y += 25
     if prop.get("notes"):
         footer_y += 15
         font_notes = load_font(layout["font_notes"], bold=True)

@@ -65,3 +65,10 @@ def test_deterministic_output(tmp_path):
 
 def test_display_rent_excludes_common_service_fee():
     assert display_rent_excluding_fee(200000, 10000) == 190000
+
+
+def test_property_master_reads_footnote3():
+    props = load_property_data_from_sheets(make_sheets_data(4, 5))
+    assert props["P001"]["footnote3"] == "※ 楽器利用不可"
+    assert props["P001"]["subtitle"] == "募 集 賃 料 表"
+    assert props["P001"]["notes"] == "ペット可"

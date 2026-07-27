@@ -69,18 +69,30 @@ def fetch_sheets_data(spreadsheet_id=None, brand=None):
 
 def load_property_data_from_sheets(sheets_data):
     properties = {}
+    property_headers = sheets_data["properties"][0] if sheets_data.get("properties") else []
+
+    def property_value(row, header_name, fallback_index=None, default=""):
+        if header_name in property_headers:
+            index = property_headers.index(header_name)
+            return row[index] if len(row) > index else default
+        if fallback_index is not None:
+            return row[fallback_index] if len(row) > fallback_index else default
+        return default
 
     for row in sheets_data["properties"][1:]:
         if not row or not row[0]:
             continue
         prop_id = row[0]
         properties[prop_id] = {
-            "name": row[1] if len(row) > 1 else "",
-            "aliases": row[2].split(",") if len(row) > 2 and row[2] else [],
-            "subtitle": row[6] if len(row) > 6 else "募 集 賃 料 表",
-            "notes": row[7] if len(row) > 7 else "",
-            "footnote1": row[4] if len(row) > 4 else "",
-            "footnote2": row[5] if len(row) > 5 else "",
+            "name": property_value(row, "物件名（正式）", 1),
+            "aliases": property_value(row, "略称（カンマ区切り）", 2).split(",")
+            if property_value(row, "略称（カンマ区切り）", 2)
+            else [],
+            "subtitle": property_value(row, "サブタイトル", 6, "募 集 賃 料 表"),
+            "notes": property_value(row, "備考", 7),
+            "footnote1": property_value(row, "脚注1", 4),
+            "footnote2": property_value(row, "脚注2", 5),
+            "footnote3": property_value(row, "脚注3"),
             "settings": {},
             "types": {},
             "rooms": [],
