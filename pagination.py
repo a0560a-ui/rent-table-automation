@@ -4,7 +4,13 @@
 
 from __future__ import annotations
 
-from layout import calculate_layout, fits_canvas
+from config import CANVAS_HEIGHT
+from layout import (
+    HEADER_FIXED_HEIGHT,
+    ONE_PAGE_SPLIT_GAP,
+    calculate_layout,
+    fits_canvas,
+)
 from validator import housing_rooms
 
 
@@ -142,6 +148,42 @@ def _valid_candidates(candidate_groups, max_columns):
     return valid
 
 
+def _footer_height(prop):
+    footnote_count = sum(bool(prop.get(key)) for key in ("footnote1", "footnote2", "footnote3"))
+    return 40 + footnote_count * 25 + (40 if prop.get("notes") else 0)
+
+
+def _stack_two_pages(prop, pages, layout):
+    """既存の2表を縮小せず、1画像内に上下配置できる場合だけ統合する。"""
+    if len(pages) != 2:
+        return None
+    if any(len(page["type_order"]) > layout["max_types"] for page in pages):
+        return None
+
+    tables_height = sum(
+        layout["header_h"] + len(page["floors"]) * layout["rowH"]
+        for page in pages
+    )
+    final_y = (
+        HEADER_FIXED_HEIGHT
+        + tables_height
+        + ONE_PAGE_SPLIT_GAP
+        + _footer_height(prop)
+    )
+    if final_y >= CANVAS_HEIGHT:
+        return None
+
+    directions = {page["split_direction"] for page in pages}
+    direction = directions.pop() if len(directions) == 1 else "MIXED"
+    return {
+        "rooms": [room for page in pages for room in page["rooms"]],
+        "floors": [],
+        "type_order": [],
+        "sections": pages,
+        "split_direction": f"STACKED_{direction}",
+    }
+
+
 def split_property_pages(prop, settings=None):
     settings = settings or prop.get("settings", {})
     rooms = housing_rooms(prop)
@@ -191,5 +233,10 @@ def split_property_pages(prop, settings=None):
         max(len(page["floors"]) for page in pages),
         {"layout_override": "SPLIT"},
     )
+    stacked_page = _stack_two_pages(prop, pages, page_layout)
+    if stacked_page:
+        page_layout["template"] = "ONE_PAGE_SPLIT"
+        return [stacked_page], page_layout
+
     page_layout["template"] = "SPLIT"
     return pages, page_layout

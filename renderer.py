@@ -30,6 +30,7 @@ from config import (
     COLOR_WHITE,
     OUTPUT_DIR,
 )
+from layout import ONE_PAGE_SPLIT_GAP
 from pagination import split_property_pages
 from text_fitting import TextDoesNotFit, draw_centered, fit_font_to_width, load_font
 from validator import housing_rooms, validate_property_data, validate_render_result
@@ -244,6 +245,123 @@ def _draw_room(draw, x, y, room_col_w, row_h, room, type_info, layout, metrics, 
         )
 
 
+def _draw_table(draw, page, layout, table_y, metrics):
+    page_rooms = page["rooms"]
+    type_order = page["type_order"]
+    floors_set = page["floors"]
+    num_types = len(type_order)
+    row_h = layout["rowH"]
+    floor_col_w = layout["floorColW"]
+    room_col_w = (layout["table_width"] - floor_col_w) // max(num_types, 1)
+    table_x = (CANVAS_WIDTH - (floor_col_w + room_col_w * num_types)) // 2
+    header_y = table_y
+    header_h = layout["header_h"]
+
+    draw.rectangle(
+        [table_x, header_y, table_x + floor_col_w, header_y + header_h],
+        fill=COLOR_GREIGE_LIGHT,
+        outline=COLOR_BORDER,
+        width=2,
+    )
+    font_header = load_font(layout["font_header"], bold=True)
+    draw_centered(
+        draw,
+        table_x + floor_col_w // 2,
+        header_y + header_h // 2,
+        "階",
+        font_header,
+        COLOR_GREIGE_DARK,
+    )
+
+    for i, column in enumerate(type_order):
+        type_key, type_info, slot_index, slot_count = _column_parts(column)
+        label, madori, area, kyoeki, _ = type_info
+        display_label = label if slot_count == 1 else f"{label}-{slot_index + 1}"
+        x = table_x + floor_col_w + i * room_col_w
+        draw.rectangle(
+            [x, header_y, x + room_col_w, header_y + header_h],
+            fill=COLOR_GREIGE_LIGHT,
+            outline=COLOR_BORDER,
+            width=2,
+        )
+        _draw_type_header(
+            draw,
+            x,
+            header_y,
+            room_col_w,
+            header_h,
+            display_label,
+            madori,
+            layout,
+            metrics,
+        )
+
+    data_y = header_y + header_h
+    font_floor = load_font(layout["font_floor"], bold=True)
+    rendered_room_uids = []
+
+    for floor_idx, floor in enumerate(floors_set):
+        y = data_y + floor_idx * row_h
+        draw.rectangle(
+            [table_x, y, table_x + floor_col_w, y + row_h],
+            fill=COLOR_GREIGE_LIGHT,
+            outline=COLOR_BORDER,
+            width=1,
+        )
+        draw_centered(
+            draw,
+            table_x + floor_col_w // 2,
+            y + row_h // 2,
+            f"{floor}F",
+            font_floor,
+            COLOR_GREIGE_DARK,
+        )
+        floor_rooms = [r for r in page_rooms if r[0] == floor]
+
+        for i, column in enumerate(type_order):
+            type_key, type_info, slot_index, slot_count = _column_parts(column)
+            x = table_x + floor_col_w + i * room_col_w
+            matching_rooms = sorted(
+                [r for r in floor_rooms if r[2] == type_key],
+                key=lambda r: r[1],
+            )
+            if slot_count > 1:
+                matching_rooms = matching_rooms[slot_index : slot_index + 1]
+            if not matching_rooms:
+                draw.rectangle(
+                    [x, y, x + room_col_w, y + row_h],
+                    fill=COLOR_BG,
+                    outline=COLOR_BORDER,
+                    width=1,
+                )
+                continue
+            draw.rectangle(
+                [x, y, x + room_col_w, y + row_h],
+                fill=_cell_bg(matching_rooms[0][4]),
+                outline=COLOR_BORDER,
+                width=1,
+            )
+            if len(matching_rooms) > 2 and row_h // len(matching_rooms) < 38:
+                raise TextDoesNotFit("同一セル内の住戸数が多すぎます")
+            for room_slot_index, room in enumerate(matching_rooms):
+                _draw_room(
+                    draw,
+                    x,
+                    y,
+                    room_col_w,
+                    row_h,
+                    room,
+                    type_info,
+                    layout,
+                    metrics,
+                    room_slot_index,
+                    len(matching_rooms),
+                )
+                rendered_room_uids.append(room[1])
+
+    return data_y + len(floors_set) * row_h, rendered_room_uids
+
+
 def render_property_page(prop, page, layout, page_number=1, total_pages=1, issue_date=None, output_dir=None):
     output_dir = Path(output_dir or OUTPUT_DIR)
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -272,7 +390,6 @@ def render_property_page(prop, page, layout, page_number=1, total_pages=1, issue
     )
     y_cursor += 70
 
-    page_rooms = page["rooms"]
     all_rooms = housing_rooms(prop)
     vacant_count = sum(1 for r in all_rooms if r[4] == "空室")
     occupied_count = sum(1 for r in all_rooms if r[4] == "満室")
@@ -290,56 +407,23 @@ def render_property_page(prop, page, layout, page_number=1, total_pages=1, issue
     draw_centered(draw, W // 2, y_cursor, issue_date, font_date, COLOR_GREIGE)
     y_cursor += 50
 
-    type_order = page["type_order"]
-    floors_set = page["floors"]
-    num_types = len(type_order)
-    row_h = layout["rowH"]
-    floor_col_w = layout["floorColW"]
-    room_col_w = (layout["table_width"] - floor_col_w) // max(num_types, 1)
-    table_x = (W - (floor_col_w + room_col_w * num_types)) // 2
     table_y = y_cursor
-    header_y = table_y
-    header_h = layout["header_h"]
-
-    draw.rectangle([table_x, header_y, table_x + floor_col_w, header_y + header_h], fill=COLOR_GREIGE_LIGHT, outline=COLOR_BORDER, width=2)
-    font_header = load_font(layout["font_header"], bold=True)
-    draw_centered(draw, table_x + floor_col_w // 2, header_y + header_h // 2, "階", font_header, COLOR_GREIGE_DARK)
-
-    for i, column in enumerate(type_order):
-        type_key, type_info, slot_index, slot_count = _column_parts(column)
-        label, madori, area, kyoeki, _ = type_info
-        display_label = label if slot_count == 1 else f"{label}-{slot_index + 1}"
-        x = table_x + floor_col_w + i * room_col_w
-        draw.rectangle([x, header_y, x + room_col_w, header_y + header_h], fill=COLOR_GREIGE_LIGHT, outline=COLOR_BORDER, width=2)
-        _draw_type_header(draw, x, header_y, room_col_w, header_h, display_label, madori, layout, metrics)
-
-    data_y = header_y + header_h
-    font_floor = load_font(layout["font_floor"], bold=True)
     rendered_room_uids = []
+    sections = page.get("sections") or [page]
+    for section_index, section in enumerate(sections):
+        if section_index:
+            table_y += ONE_PAGE_SPLIT_GAP
+        table_bottom, section_room_uids = _draw_table(
+            draw,
+            section,
+            layout,
+            table_y,
+            metrics,
+        )
+        rendered_room_uids.extend(section_room_uids)
+        table_y = table_bottom
 
-    for floor_idx, floor in enumerate(floors_set):
-        y = data_y + floor_idx * row_h
-        draw.rectangle([table_x, y, table_x + floor_col_w, y + row_h], fill=COLOR_GREIGE_LIGHT, outline=COLOR_BORDER, width=1)
-        draw_centered(draw, table_x + floor_col_w // 2, y + row_h // 2, f"{floor}F", font_floor, COLOR_GREIGE_DARK)
-        floor_rooms = [r for r in page_rooms if r[0] == floor]
-
-        for i, column in enumerate(type_order):
-            type_key, type_info, slot_index, slot_count = _column_parts(column)
-            x = table_x + floor_col_w + i * room_col_w
-            matching_rooms = sorted([r for r in floor_rooms if r[2] == type_key], key=lambda r: r[1])
-            if slot_count > 1:
-                matching_rooms = matching_rooms[slot_index : slot_index + 1]
-            if not matching_rooms:
-                draw.rectangle([x, y, x + room_col_w, y + row_h], fill=COLOR_BG, outline=COLOR_BORDER, width=1)
-                continue
-            draw.rectangle([x, y, x + room_col_w, y + row_h], fill=_cell_bg(matching_rooms[0][4]), outline=COLOR_BORDER, width=1)
-            if len(matching_rooms) > 2 and row_h // len(matching_rooms) < 38:
-                raise TextDoesNotFit("同一セル内の住戸数が多すぎます")
-            for slot_index, room in enumerate(matching_rooms):
-                _draw_room(draw, x, y, room_col_w, row_h, room, type_info, layout, metrics, slot_index, len(matching_rooms))
-                rendered_room_uids.append(room[1])
-
-    footer_y = data_y + len(floors_set) * row_h + 40
+    footer_y = table_y + 40
     font_footnote = load_font(layout["font_footnote"])
     for key in ("footnote1", "footnote2", "footnote3"):
         if prop.get(key):

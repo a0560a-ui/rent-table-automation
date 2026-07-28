@@ -15,6 +15,7 @@ def test_type_split_prioritizes_vacant_types_on_first_page():
     props = load_property_data_from_sheets(data)
     pages, _ = split_property_pages(props["P001"])
 
-    assert len(pages) >= 2
-    first_page_types = [column["type_key"] for column in pages[0]["type_order"]]
+    assert len(pages) == 1
+    assert len(pages[0]["sections"]) == 2
+    first_page_types = [column["type_key"] for column in pages[0]["sections"][0]["type_order"]]
     assert "J" in first_page_types

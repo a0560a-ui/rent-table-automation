@@ -34,8 +34,22 @@ def test_split_pages_use_whole_property_status_count(tmp_path):
     data["rooms"][2][6] = "空室"
     props = load_property_data_from_sheets(data)
     pages = generate_image("P001", props, issue_date="2026年07月13日", output_dir=tmp_path)
-    assert len(pages) >= 2
+    assert len(pages) == 1
+    assert pages[0]["layout"]["template"] == "ONE_PAGE_SPLIT"
     assert {page["status_text"] for page in pages} == {"空室状況   2 / 40 戸"}
+    assert len(pages[0]["rendered_room_uids"]) == 40
+    assert Image.open(pages[0]["path"]).size == (1080, 1920)
+
+
+def test_two_split_tables_are_combined_without_missing_rooms(tmp_path):
+    data = make_sheets_data(14, 5)
+    props = load_property_data_from_sheets(data)
+    pages = generate_image("P001", props, issue_date="2026年07月13日", output_dir=tmp_path)
+
+    assert len(pages) == 1
+    assert pages[0]["layout"]["template"] == "ONE_PAGE_SPLIT"
+    assert len(pages[0]["rendered_room_uids"]) == 70
+    assert pages[0]["final_y"] < 1920
 
 
 def test_duplicate_same_floor_type_not_dropped(tmp_path):
