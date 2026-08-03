@@ -5,9 +5,10 @@ import pytest
 from sheets import load_property_data_from_sheets
 
 
-def make_sheets_data(type_count=4, floor_count=5, duplicate_same_cell=False, long_type=False):
+def make_sheets_data(type_count=4, floor_count=5, duplicate_same_cell=False, long_type=False, second_phase_rooms=None):
     types = [["物件ID", "タイプ", "間取り", "専有面積(㎡)", "共益費", "表示順序", "表示ラベル"]]
-    rooms = [["物件ID", "階", "部屋番号", "タイプ", "間取り(自動)", "賃料(共益費込)", "状態", "備考", "区分"]]
+    rooms = [["物件ID", "階", "部屋番号", "タイプ", "間取り(自動)", "賃料(共益費込)", "状態", "備考", "区分", "2期募集"]]
+    second_phase_rooms = set(second_phase_rooms or [])
     for i in range(type_count):
         key = chr(ord("A") + i)
         label = f"{key}非常に長いタイプ名" if long_type and i == 0 else key
@@ -16,9 +17,10 @@ def make_sheets_data(type_count=4, floor_count=5, duplicate_same_cell=False, lon
     for floor in range(1, floor_count + 1):
         for i in range(type_count):
             key = chr(ord("A") + i)
-            rooms.append(["P001", str(floor), f"{floor}{i + 1:02d}", key, "", str(120000 + floor * 1000 + i * 5000), statuses[(floor + i) % 3], "", "住戸"])
+            room_no = f"{floor}{i + 1:02d}"
+            rooms.append(["P001", str(floor), room_no, key, "", str(120000 + floor * 1000 + i * 5000), statuses[(floor + i) % 3], "", "住戸", "TRUE" if room_no in second_phase_rooms else ""])
     if duplicate_same_cell:
-        rooms.append(["P001", "1", "199", "A", "", "188000", "空室", "", "住戸"])
+        rooms.append(["P001", "1", "199", "A", "", "188000", "空室", "", "住戸", ""])
     return {
         "properties": [
             ["物件ID", "物件名（正式）", "略称（カンマ区切り）", "総戸数（自動計算）", "脚注1", "脚注2", "脚注3", "サブタイトル", "備考"],

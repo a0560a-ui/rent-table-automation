@@ -15,6 +15,10 @@ def room_uid(prop_id, room):
     return f"{prop_id}:{room[1]}"
 
 
+def is_second_phase_room(room):
+    return len(room) > 6 and bool(room[6])
+
+
 def validate_property_data(prop_id, properties):
     if prop_id not in properties:
         return False, f"❌ エラー: 物件ID {prop_id} が見つかりません"
@@ -32,7 +36,7 @@ def validate_property_data(prop_id, properties):
 
     seen_rooms = set()
     for room in rooms:
-        floor, room_no, typ, rent, status, _ = room
+        floor, room_no, typ, rent, status, *_ = room
         if not room_no:
             errors.append("❌ 部屋番号が空の住戸があります")
         uid = room_uid(prop_id, room)
@@ -61,6 +65,7 @@ def validate_property_data(prop_id, properties):
     vacant = sum(1 for r in rooms if r[4] == "空室")
     occupied = sum(1 for r in rooms if r[4] == "満室")
     non_recruit = sum(1 for r in rooms if r[4] == "非募集")
+    second_phase = sum(1 for r in rooms if is_second_phase_room(r))
 
     if errors:
         return False, "\n".join(errors + warnings)
@@ -73,6 +78,7 @@ def validate_property_data(prop_id, properties):
         f"   ├ 空室: {vacant}室",
         f"   ├ 満室: {occupied}室",
         f"   └ 非募集: {non_recruit}室",
+        f"🔖 2期募集: {second_phase}室",
         f"📐 タイプ数: {len(defined_types)}種類 {sorted(defined_types)}",
         f"🎯 募集対象: {vacant + occupied}室（空室{vacant} / 満室{occupied}）",
     ]

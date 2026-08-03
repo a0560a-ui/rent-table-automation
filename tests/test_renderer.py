@@ -81,6 +81,22 @@ def test_display_rent_excludes_common_service_fee():
     assert display_rent_excluding_fee(200000, 10000) == 190000
 
 
+def test_second_phase_room_is_read_and_rendered(tmp_path):
+    data = make_sheets_data(4, 5, second_phase_rooms={"501"})
+    # 実運用で既存列の途中へ追加されても、ヘッダー名で正しく読み取る。
+    for row in data["rooms"]:
+        second_phase_value = row.pop()
+        row.insert(6, second_phase_value)
+    props = load_property_data_from_sheets(data)
+    second_phase_room = next(room for room in props["P001"]["rooms"] if room[1] == "501")
+    assert second_phase_room[6] is True
+
+    pages = generate_image("P001", props, issue_date="2026年08月03日", output_dir=tmp_path)
+    assert len(pages) == 1
+    assert len(pages[0]["rendered_room_uids"]) == 20
+    assert pages[0]["min_font_used"] >= pages[0]["layout"]["min_font"]
+
+
 def test_property_master_reads_footnote3():
     props = load_property_data_from_sheets(make_sheets_data(4, 5))
     assert props["P001"]["footnote3"] == "※ 楽器利用不可"

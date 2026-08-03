@@ -34,6 +34,24 @@ def normalize_type_key(value):
     return str(value or "").strip().replace("'", "’").replace("‘", "’").replace("`", "’")
 
 
+def normalize_second_phase(value):
+    """2期募集列のチェックボックス・記号・文字入力を真偽値へ統一する。"""
+    normalized = str(value or "").strip().lower().replace(" ", "")
+    return normalized in {
+        "true",
+        "1",
+        "yes",
+        "有",
+        "あり",
+        "○",
+        "〇",
+        "2期",
+        "２期",
+        "2期募集",
+        "２期募集",
+    }
+
+
 def _authorize_gspread():
     try:
         import gspread
@@ -113,20 +131,38 @@ def load_property_data_from_sheets(sheets_data):
             int(float(row[5])) if len(row) > 5 and row[5] else 0,
         )
 
+    room_headers = sheets_data["rooms"][0] if sheets_data.get("rooms") else []
+
+    def room_value(row, header_names, fallback_index=None, default=""):
+        if isinstance(header_names, str):
+            header_names = (header_names,)
+        for header_name in header_names:
+            if header_name in room_headers:
+                index = room_headers.index(header_name)
+                return row[index] if len(row) > index else default
+        if fallback_index is not None:
+            return row[fallback_index] if len(row) > fallback_index else default
+        return default
+
     for row in sheets_data["rooms"][1:]:
-        if not row or not row[0]:
+        prop_id = room_value(row, "物件ID", 0)
+        if not row or not prop_id:
             continue
-        prop_id = row[0]
         if prop_id not in properties:
             continue
+        floor_value = room_value(row, "階", 1)
+        rent_value = str(room_value(row, "賃料(共益費込)", 5)).replace(",", "")
         properties[prop_id]["rooms"].append(
             (
-                int(row[1]) if len(row) > 1 and str(row[1]).isdigit() else 0,
-                row[2] if len(row) > 2 else "",
-                normalize_type_key(row[3]) if len(row) > 3 else "",
-                int(float(str(row[5]).replace(",", ""))) if len(row) > 5 and str(row[5]).replace(",", "").replace(".", "", 1).isdigit() else 0,
-                row[6] if len(row) > 6 else "空室",
-                row[8] if len(row) > 8 else "住戸",
+                int(floor_value) if str(floor_value).isdigit() else 0,
+                room_value(row, "部屋番号", 2),
+                normalize_type_key(room_value(row, "タイプ", 3)),
+                int(float(rent_value)) if rent_value.replace(".", "", 1).isdigit() else 0,
+                room_value(row, "状態", 6, "空室"),
+                room_value(row, "区分", 8, "住戸"),
+                normalize_second_phase(
+                    room_value(row, ("2期募集", "２期募集", "二期募集"))
+                ),
             )
         )
 
