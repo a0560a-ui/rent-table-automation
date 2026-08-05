@@ -152,15 +152,18 @@ def load_property_data_from_sheets(sheets_data):
             continue
         floor_value = room_value(row, "階", 1)
         rent_value = str(room_value(row, "賃料(共益費込)", 5)).replace(",", "")
+        raw_status = room_value(row, ("状態", "空室"), 6, "空室")
+        second_phase_from_status = normalize_second_phase(raw_status)
         properties[prop_id]["rooms"].append(
             (
                 int(floor_value) if str(floor_value).isdigit() else 0,
                 room_value(row, "部屋番号", 2),
                 normalize_type_key(room_value(row, "タイプ", 3)),
                 int(float(rent_value)) if rent_value.replace(".", "", 1).isdigit() else 0,
-                room_value(row, "状態", 6, "空室"),
+                "空室" if second_phase_from_status else raw_status,
                 room_value(row, "区分", 8, "住戸"),
-                normalize_second_phase(
+                second_phase_from_status
+                or normalize_second_phase(
                     room_value(row, ("2期募集", "２期募集", "二期募集"))
                 ),
             )
