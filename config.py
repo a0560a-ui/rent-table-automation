@@ -26,7 +26,7 @@ COLOR_OCCUPIED_BG = (220, 215, 205)
 COLOR_NON_RECRUIT_BG = (245, 240, 230)
 COLOR_BORDER = (199, 189, 168)
 
-ALLOWED_STATUSES = {"空室", "満室", "非募集"}
+ALLOWED_STATUSES = {"空室", "満室", "非募集", "2期募集"}
 
 FONT_PATH = os.getenv("RENT_TABLE_FONT_PATH", "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc")
 FONT_BOLD_PATH = os.getenv("RENT_TABLE_FONT_BOLD_PATH", "/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc")

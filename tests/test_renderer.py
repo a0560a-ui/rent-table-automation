@@ -89,6 +89,7 @@ def test_second_phase_room_is_read_and_rendered(tmp_path):
         row.insert(6, second_phase_value)
     props = load_property_data_from_sheets(data)
     second_phase_room = next(room for room in props["P001"]["rooms"] if room[1] == "501")
+    assert second_phase_room[4] == "2期募集"
     assert second_phase_room[6] is True
 
     pages = generate_image("P001", props, issue_date="2026年08月03日", output_dir=tmp_path)
@@ -97,19 +98,20 @@ def test_second_phase_room_is_read_and_rendered(tmp_path):
     assert pages[0]["min_font_used"] >= pages[0]["layout"]["min_font"]
 
 
-def test_second_phase_status_is_treated_as_vacant(tmp_path):
+def test_second_phase_status_is_excluded_from_current_vacancies(tmp_path):
     data = make_sheets_data(4, 5)
     target_row = next(row for row in data["rooms"][1:] if row[2] == "502")
     target_row[6] = "２期募集"
     props = load_property_data_from_sheets(data)
     second_phase_room = next(room for room in props["P001"]["rooms"] if room[1] == "502")
 
-    assert second_phase_room[4] == "空室"
+    assert second_phase_room[4] == "2期募集"
     assert second_phase_room[6] is True
 
     pages = generate_image("P001", props, issue_date="2026年08月05日", output_dir=tmp_path)
     assert len(pages) == 1
     assert "P001:502" in pages[0]["rendered_room_uids"]
+    assert pages[0]["status_text"] == "空室状況   5 / 12 戸"
 
 
 def test_property_master_reads_footnote3():

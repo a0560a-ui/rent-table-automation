@@ -35,7 +35,6 @@ from pagination import split_property_pages
 from text_fitting import TextDoesNotFit, draw_centered, fit_font_to_width, load_font
 from validator import (
     housing_rooms,
-    is_second_phase_room,
     validate_property_data,
     validate_render_result,
 )
@@ -142,6 +141,8 @@ def _cell_bg(status):
         return COLOR_VACANT_BG
     if status == "満室":
         return COLOR_GREIGE_LIGHT
+    if status == "2期募集":
+        return COLOR_NON_RECRUIT_BG
     return COLOR_BG
 
 
@@ -154,7 +155,7 @@ def _format_area(area):
 
 
 def _room_band_fill(status):
-    if status == "空室":
+    if status in {"空室", "2期募集"}:
         return COLOR_GOLD_LIGHT
     if status == "満室":
         return COLOR_OCCUPIED_BG
@@ -194,31 +195,14 @@ def _draw_room(draw, x, y, room_col_w, row_h, room, type_info, layout, metrics, 
     main_top = room_block_bottom + 6
     main_bottom = slot_y + slot_h - 6
     main_center_y = (main_top + main_bottom) // 2
-    second_phase = is_second_phase_room(room)
-
-    if second_phase:
-        _fit_and_draw_centered(
-            draw,
-            center_x,
-            main_top + 3,
-            "2期募集",
-            max(layout["min_font"], min(14, layout["font_kyoeki"])),
-            layout["min_font"],
-            room_col_w - 8,
-            COLOR_GOLD,
-            bold=True,
-            metrics=metrics,
-        )
 
     if status == "空室":
         price_text = f"¥{display_rent_excluding_fee(rent, kyoeki):,}"
         fee_text = f"共益費 ¥{kyoeki:,}"
-        price_center_y = main_top + 27 if second_phase else main_center_y - 13
-        fee_center_y = main_bottom - 8 if second_phase else main_center_y + 20
         _fit_and_draw_centered(
             draw,
             center_x,
-            price_center_y,
+            main_center_y - 13,
             price_text,
             layout["font_price"],
             layout["min_font"],
@@ -231,7 +215,7 @@ def _draw_room(draw, x, y, room_col_w, row_h, room, type_info, layout, metrics, 
             _fit_and_draw_centered(
                 draw,
                 center_x,
-                fee_center_y,
+                main_center_y + 20,
                 fee_text,
                 layout["font_kyoeki"],
                 layout["min_font"],
@@ -239,11 +223,24 @@ def _draw_room(draw, x, y, room_col_w, row_h, room, type_info, layout, metrics, 
                 COLOR_GREIGE,
                 metrics=metrics,
             )
+    elif status == "2期募集":
+        _fit_and_draw_centered(
+            draw,
+            center_x,
+            main_center_y,
+            "2期募集",
+            layout["font_price"],
+            layout["min_font"],
+            room_col_w - 8,
+            COLOR_GOLD,
+            bold=True,
+            metrics=metrics,
+        )
     elif status == "満室":
         _fit_and_draw_centered(
             draw,
             center_x,
-            main_center_y + (8 if second_phase else 0),
+            main_center_y,
             "満室",
             layout["font_price"],
             layout["min_font"],
@@ -256,7 +253,7 @@ def _draw_room(draw, x, y, room_col_w, row_h, room, type_info, layout, metrics, 
         _fit_and_draw_centered(
             draw,
             center_x,
-            main_center_y + (8 if second_phase else 0),
+            main_center_y,
             "非募集",
             layout["font_price"],
             layout["min_font"],
