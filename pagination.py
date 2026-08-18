@@ -150,7 +150,8 @@ def _valid_candidates(candidate_groups, max_columns):
 
 def _footer_height(prop):
     footnote_count = sum(bool(prop.get(key)) for key in ("footnote1", "footnote2", "footnote3"))
-    return 40 + footnote_count * 25 + (40 if prop.get("notes") else 0)
+    # 全物件共通の「情報基準日」注意書き2行分を常に確保する。
+    return 40 + (footnote_count + 2) * 25 + (40 if prop.get("notes") else 0)
 
 
 def _stack_two_pages(prop, pages, layout):

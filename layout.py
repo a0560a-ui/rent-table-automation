@@ -95,7 +95,7 @@ SPLIT_MAX_TYPES = 9
 ONE_PAGE_SPLIT_GAP = 28
 
 HEADER_FIXED_HEIGHT = 40 + 50 + 70 + 60 + 50
-FOOTER_RESERVED_HEIGHT = 120
+FOOTER_RESERVED_HEIGHT = 170
 
 
 def select_layout_template(nt: int, floors: int, settings: dict | None = None) -> str:

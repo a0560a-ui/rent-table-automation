@@ -14,6 +14,21 @@ def test_render_image_size_and_room_count(tmp_path):
     assert len(pages) == 1
     assert Image.open(pages[0]["path"]).size == (1080, 1920)
     assert len(pages[0]["rendered_room_uids"]) == 20
+    assert pages[0]["disclaimer_text"] == (
+        "本賃料表の記載内容は2026年07月13日時点の情報です。"
+        "今後、諸条件等により変更となる場合がございますので、あらかじめご了承ください。"
+    )
+
+
+def test_disclaimer_uses_date_without_page_number(tmp_path):
+    props = load_property_data_from_sheets(make_sheets_data(4, 20))
+    pages = generate_image("P001", props, issue_date="2026年08月18日", output_dir=tmp_path)
+
+    assert len(pages) >= 2
+    assert {page["disclaimer_text"] for page in pages} == {
+        "本賃料表の記載内容は2026年08月18日時点の情報です。"
+        "今後、諸条件等により変更となる場合がございますので、あらかじめご了承ください。"
+    }
 
 
 def test_split_for_many_floors(tmp_path):

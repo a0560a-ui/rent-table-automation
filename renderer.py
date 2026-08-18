@@ -420,6 +420,7 @@ def render_property_page(prop, page, layout, page_number=1, total_pages=1, issue
 
     if issue_date is None:
         issue_date = datetime.now().strftime("%Y年%m月%d日")
+    base_issue_date = issue_date
     if total_pages > 1:
         issue_date = f"{issue_date}   {page_number} / {total_pages}"
     font_date = load_font(layout["font_date"])
@@ -448,6 +449,24 @@ def render_property_page(prop, page, layout, page_number=1, total_pages=1, issue
         if prop.get(key):
             draw_centered(draw, W // 2, footer_y, prop[key], font_footnote, COLOR_GREIGE)
             footer_y += 25
+    disclaimer_lines = (
+        f"本賃料表の記載内容は{base_issue_date}時点の情報です。",
+        "今後、諸条件等により変更となる場合がございますので、あらかじめご了承ください。",
+    )
+    disclaimer_text = "".join(disclaimer_lines)
+    for line in disclaimer_lines:
+        _fit_and_draw_centered(
+            draw,
+            W // 2,
+            footer_y,
+            line,
+            layout["font_footnote"],
+            layout["min_font"],
+            W - 80,
+            COLOR_GREIGE,
+            metrics=metrics,
+        )
+        footer_y += 25
     if prop.get("notes"):
         footer_y += 15
         font_notes = load_font(layout["font_notes"], bold=True)
@@ -467,6 +486,7 @@ def render_property_page(prop, page, layout, page_number=1, total_pages=1, issue
         "split_direction": page["split_direction"],
         "rendered_room_uids": rendered_room_uids,
         "status_text": status_text,
+        "disclaimer_text": disclaimer_text,
         "final_y": footer_y,
         "min_font_used": metrics["min_font_used"] if metrics["min_font_used"] != 999 else layout["min_font"],
     }
