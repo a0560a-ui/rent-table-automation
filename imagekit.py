@@ -6,8 +6,52 @@ from __future__ import annotations
 
 import base64
 import os
+import time
 
 from config import IMAGEKIT_PRICE_TABLE_FOLDER, MAX_FIXED_PAGE_SLOTS, imagekit_endpoint, imagekit_private_key
+
+
+RETRYABLE_IMAGEKIT_STATUS_CODES = {429, 500, 502, 503, 504}
+
+
+def _post_with_retry(
+    requests_module,
+    url,
+    *,
+    operation,
+    max_attempts=5,
+    retry_base_seconds=2.0,
+    **kwargs,
+):
+    max_attempts = max(1, int(max_attempts))
+    for attempt in range(1, max_attempts + 1):
+        try:
+            response = requests_module.post(url, **kwargs)
+        except Exception as exc:
+            retryable = exc.__class__.__name__ in {
+                "ConnectionError",
+                "ConnectTimeout",
+                "ReadTimeout",
+                "Timeout",
+            }
+            if attempt >= max_attempts or not retryable:
+                raise
+            status = exc.__class__.__name__
+        else:
+            if response.status_code not in RETRYABLE_IMAGEKIT_STATUS_CODES:
+                return response
+            if attempt >= max_attempts:
+                return response
+            status = response.status_code
+
+        delay = retry_base_seconds * (2 ** (attempt - 1))
+        print(
+            f"ImageKit {operation}一時エラー ({status})。"
+            f"{delay:g}秒後に再試行します ({attempt}/{max_attempts})"
+        )
+        time.sleep(delay)
+
+    raise RuntimeError(f"ImageKit {operation}に失敗しました")
 
 
 def upload_to_imagekit(file_path, brand_name=None, folder=None, file_name=None):
@@ -34,8 +78,10 @@ def upload_to_imagekit(file_path, brand_name=None, folder=None, file_name=None):
         "overwriteTags": "false",
         "overwriteCustomMetadata": "false",
     }
-    response = requests.post(
+    response = _post_with_retry(
+        requests,
         "https://upload.imagekit.io/api/v1/files/upload",
+        operation="アップロード",
         headers={"Authorization": f"Basic {auth}"},
         data=payload,
         timeout=30,
