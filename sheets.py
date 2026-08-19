@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import json
+import time
 
 from config import (
     BRAND_SPREADSHEET_IDS,
@@ -74,15 +75,67 @@ def _authorize_gspread():
     return gspread.authorize(credentials)
 
 
-def fetch_sheets_data(spreadsheet_id=None, brand=None):
-    """Google Sheetsから既存 sheets_data 形式で3シートを取得する。"""
-    resolved_id = resolve_spreadsheet_id(spreadsheet_id or brand)
-    client = _authorize_gspread()
-    spreadsheet = client.open_by_key(resolved_id)
-    return {
-        key: spreadsheet.worksheet(title).get_all_values()
-        for key, title in SHEET_TITLES.items()
+RETRYABLE_GOOGLE_STATUS_CODES = {429, 500, 502, 503, 504}
+
+
+def _google_error_status_code(exc):
+    for source in (exc, getattr(exc, "response", None), getattr(exc, "resp", None)):
+        if source is None:
+            continue
+        status_code = getattr(source, "status_code", None) or getattr(source, "status", None)
+        if status_code is not None:
+            try:
+                return int(status_code)
+            except (TypeError, ValueError):
+                return None
+    return None
+
+
+def _is_retryable_google_error(exc):
+    status_code = _google_error_status_code(exc)
+    if status_code is not None:
+        return status_code in RETRYABLE_GOOGLE_STATUS_CODES
+    return isinstance(exc, (ConnectionError, TimeoutError)) or exc.__class__.__name__ in {
+        "ConnectionError",
+        "ConnectTimeout",
+        "ReadTimeout",
+        "Timeout",
+        "TransportError",
     }
+
+
+def fetch_sheets_data(
+    spreadsheet_id=None,
+    brand=None,
+    max_attempts=5,
+    retry_base_seconds=2.0,
+):
+    """Google Sheetsから既存 sheets_data 形式で3シートを取得する。
+
+    Google側の一時的な429/5xx・通信エラーだけ指数バックオフで再試行する。
+    """
+    resolved_id = resolve_spreadsheet_id(spreadsheet_id or brand)
+    max_attempts = max(1, int(max_attempts))
+    for attempt in range(1, max_attempts + 1):
+        try:
+            client = _authorize_gspread()
+            spreadsheet = client.open_by_key(resolved_id)
+            return {
+                key: spreadsheet.worksheet(title).get_all_values()
+                for key, title in SHEET_TITLES.items()
+            }
+        except Exception as exc:
+            if attempt >= max_attempts or not _is_retryable_google_error(exc):
+                raise
+            delay = retry_base_seconds * (2 ** (attempt - 1))
+            status_code = _google_error_status_code(exc) or exc.__class__.__name__
+            print(
+                f"Google Sheets一時エラー ({status_code})。"
+                f"{delay:g}秒後に再試行します ({attempt}/{max_attempts})"
+            )
+            time.sleep(delay)
+
+    raise RuntimeError("Google Sheetsの取得に失敗しました")
 
 
 def load_property_data_from_sheets(sheets_data):
