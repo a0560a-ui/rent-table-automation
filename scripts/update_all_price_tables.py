@@ -9,6 +9,7 @@ import json
 from datetime import datetime
 from pathlib import Path
 import sys
+from zoneinfo import ZoneInfo
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
@@ -22,6 +23,9 @@ from renderer import generate_image, render_placeholder_page  # noqa: E402
 from sheets import fetch_sheets_data, load_property_data_from_sheets  # noqa: E402
 from html_pages import build_property_page  # noqa: E402
 from validator import housing_rooms, validate_property_data  # noqa: E402
+
+
+JST = ZoneInfo("Asia/Tokyo")
 
 
 def _target_property_ids(properties, requested_ids=None):
@@ -120,16 +124,17 @@ def update_brand(brand, args):
 
 
 def main():
+    now_jst = datetime.now(JST)
     parser = argparse.ArgumentParser(description="全物件の価格表を週次更新します")
     parser.add_argument("--brands", nargs="+", default=["DM", "DF"], choices=["DM", "DF", "デュオメゾン", "デュオフラッツ"])
     parser.add_argument("--property-ids", nargs="*", default=None)
-    parser.add_argument("--issue-date", default=datetime.now().strftime("%Y年%m月%d日"))
+    parser.add_argument("--issue-date", default=now_jst.strftime("%Y年%m月%d日"))
     parser.add_argument("--output-dir", type=Path, default=OUTPUT_DIR / "batch")
     parser.add_argument("--site-dir", type=Path, default=SITE_DIR)
     parser.add_argument("--site-base-url", default=public_site_base_url() or "")
     parser.add_argument("--report-dir", type=Path, default=PROJECT_ROOT / "reports")
     parser.add_argument("--max-slots", type=int, default=MAX_FIXED_PAGE_SLOTS)
-    parser.add_argument("--cache-buster", default=datetime.now().strftime("%Y%m%d%H%M%S"))
+    parser.add_argument("--cache-buster", default=now_jst.strftime("%Y%m%d%H%M%S"))
     parser.add_argument("--dry-run", action="store_true", help="ImageKitへアップロードせず画像生成と検証だけ行う")
     parser.add_argument("--allow-partial", action="store_true", help="一部物件が失敗しても成功物件の公開処理を継続する")
     args = parser.parse_args()
@@ -142,7 +147,7 @@ def main():
         all_rows,
         args.site_dir,
         base_url=args.site_base_url,
-        generated_at=datetime.now().strftime("%Y年%m月%d日 %H:%M"),
+        generated_at=now_jst.strftime("%Y年%m月%d日 %H:%M"),
     )
     previous_leasing = fetch_previous_leasing_data(args.site_base_url)
     leasing_report = build_leasing_dashboard(
@@ -150,8 +155,8 @@ def main():
         args.site_dir,
         base_url=args.site_base_url,
         previous_data=previous_leasing,
-        snapshot_date=datetime.now().strftime("%Y-%m-%d"),
-        generated_at=datetime.now().strftime("%Y年%m月%d日 %H:%M"),
+        snapshot_date=now_jst.strftime("%Y-%m-%d"),
+        generated_at=now_jst.strftime("%Y年%m月%d日 %H:%M"),
     )
     failures = [row for row in all_rows if row["status"] != "success"]
     print(
