@@ -76,6 +76,10 @@ jobs:
           rows = json.loads(report_path.read_text(encoding="utf-8"))
           failures = [row for row in rows if row.get("status") != "success"]
           report_url = os.environ.get("PUBLIC_SITE_BASE_URL", "").rstrip("/") + "/reports/"
+          leasing_url = os.environ.get("PUBLIC_SITE_BASE_URL", "").rstrip("/") + "/leasing/"
+          leasing_path = Path("site/leasing/latest.json")
+          leasing = json.loads(leasing_path.read_text(encoding="utf-8")) if leasing_path.exists() else {}
+          priority_rows = [row for row in leasing.get("properties", []) if row.get("priority") == "要確認"]
           summary_path = os.environ.get("GITHUB_STEP_SUMMARY")
 
           lines = [
@@ -84,8 +88,18 @@ jobs:
               f"- 更新対象: {len(rows)}件",
               f"- 要確認: {len(failures)}件",
               f"- 診断ページ: {report_url}",
+              f"- リーシング進捗: {leasing_url}",
+              f"- リーシング要確認: {len(priority_rows)}件",
               "",
           ]
+          if priority_rows:
+              lines.append("### リーシング要確認（空室数順）")
+              for row in priority_rows[:10]:
+                  lines.append(
+                      f"- **{row.get('property_name')}**: 空室{row.get('vacant_count')}戸 / "
+                      f"空室率{row.get('vacancy_rate')}%（{row.get('priority_reason')}）"
+                  )
+              lines.append("")
           if failures:
               lines.append("### 要確認の物件")
               print("Price table update completed with data errors:")

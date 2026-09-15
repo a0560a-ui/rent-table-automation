@@ -16,6 +16,7 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from config import MAX_FIXED_PAGE_SLOTS, OUTPUT_DIR, SITE_DIR, public_site_base_url  # noqa: E402
 from imagekit import upload_fixed_page_set  # noqa: E402
+from leasing import build_leasing_dashboard, build_leasing_metrics, fetch_previous_leasing_data  # noqa: E402
 from reporting import build_public_update_report, write_json_csv_reports  # noqa: E402
 from renderer import generate_image, render_placeholder_page  # noqa: E402
 from sheets import fetch_sheets_data, load_property_data_from_sheets  # noqa: E402
@@ -46,6 +47,7 @@ def update_brand(brand, args):
     for prop_id in prop_ids:
         prop = properties[prop_id]
         output_dir = args.output_dir / brand / prop_id
+        leasing_metrics = build_leasing_metrics(brand, prop_id, prop)
         try:
             success, message = validate_property_data(prop_id, properties)
             if not success:
@@ -91,6 +93,7 @@ def update_brand(brand, args):
                     "page_path": page_info["path"],
                     "page_url": page_info["url"],
                     "error": "",
+                    **leasing_metrics,
                 }
             )
         except Exception as exc:
@@ -110,6 +113,7 @@ def update_brand(brand, args):
                     "page_path": "",
                     "page_url": "",
                     "error": str(exc),
+                    **leasing_metrics,
                 }
             )
     return rows
@@ -140,6 +144,15 @@ def main():
         base_url=args.site_base_url,
         generated_at=datetime.now().strftime("%Y年%m月%d日 %H:%M"),
     )
+    previous_leasing = fetch_previous_leasing_data(args.site_base_url)
+    leasing_report = build_leasing_dashboard(
+        all_rows,
+        args.site_dir,
+        base_url=args.site_base_url,
+        previous_data=previous_leasing,
+        snapshot_date=datetime.now().strftime("%Y-%m-%d"),
+        generated_at=datetime.now().strftime("%Y年%m月%d日 %H:%M"),
+    )
     failures = [row for row in all_rows if row["status"] != "success"]
     print(
         json.dumps(
@@ -149,6 +162,7 @@ def main():
                 "json": str(json_path),
                 "csv": str(csv_path),
                 "public_report": public_report,
+                "leasing_report": leasing_report,
             },
             ensure_ascii=False,
             indent=2,

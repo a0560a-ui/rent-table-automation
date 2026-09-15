@@ -24,6 +24,12 @@ REPORT_FIELDS = [
     "error",
     "urls",
     "page_url",
+    "vacant_count",
+    "leasing_target_count",
+    "vacancy_rate",
+    "occupied_count",
+    "non_recruit_count",
+    "second_phase_count",
 ]
 
 
@@ -184,6 +190,7 @@ def build_public_update_report(
   <main>
     <h1>募集賃料表 更新診断レポート</h1>
     <div class="meta">生成日時: {escape(generated_at)}</div>
+    <p><a href="{escape(_join_url(base_url, 'leasing/') if base_url else '../leasing/', quote=True)}">リーシング進捗一覧を開く</a></p>
     <section class="summary {summary_class}">
       <strong>更新対象 {len(report_rows)}件 / 要確認 {len(failures)}件</strong><br>
       {"問題がある物件だけ確認してください。成功済みの物件は通常通り公開されています。" if failures else "全物件の更新が正常に完了しました。"}

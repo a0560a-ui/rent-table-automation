@@ -139,6 +139,16 @@ reports/update_result.json
 reports/update_result.csv
 ```
 
+同時に、空室数・空室率・前回比・7日前比を優先度順に確認できるリーシング進捗ページを生成します。
+
+```text
+site/leasing/index.html
+site/leasing/latest.json
+site/leasing/latest.csv
+```
+
+GitHub Pagesでは `/leasing/` が固定URLです。前回の公開JSONを毎日引き継ぎ、最大35回分の履歴から前回比と7日前比を算出します。非募集・2期募集は空室率の分母から除外します。
+
 ## GitHub Actions
 
 `.github/workflows/update-price-tables.yml` を追加済みです。
