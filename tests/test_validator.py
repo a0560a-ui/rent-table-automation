@@ -19,6 +19,19 @@ def test_unknown_status_fails():
     assert "不明な状態" in message
 
 
+def test_application_status_variants_are_allowed_and_normalized():
+    data = make_sheets_data()
+    data["rooms"][1][6] = "申込あり"
+    data["rooms"][2][6] = "申込"
+    props = load_property_data_from_sheets(data)
+    success, message = validate_property_data("P001", props)
+
+    assert success, message
+    assert props["P001"]["rooms"][0][4] == "申込"
+    assert props["P001"]["rooms"][1][4] == "申込"
+    assert "申込: 2室" in message
+
+
 def test_undefined_type_fails():
     data = make_sheets_data()
     data["rooms"][1][3] = "Z"

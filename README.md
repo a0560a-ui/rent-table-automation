@@ -147,7 +147,7 @@ site/leasing/latest.json
 site/leasing/latest.csv
 ```
 
-GitHub Pagesでは `/leasing/` が固定URLです。前回の公開JSONを毎日引き継ぎ、最大35回分の履歴から前回比と7日前比を算出します。非募集・2期募集は空室率の分母から除外します。
+GitHub Pagesでは `/leasing/` が固定URLです。前回の公開JSONを毎日引き継ぎ、最大35回分の履歴から前回比と7日前比を算出します。申込は空室に含めず、非募集・2期募集は空室率の分母から除外します。
 
 ## GitHub Actions
 

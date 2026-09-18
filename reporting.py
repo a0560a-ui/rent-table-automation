@@ -27,6 +27,7 @@ REPORT_FIELDS = [
     "vacant_count",
     "leasing_target_count",
     "vacancy_rate",
+    "application_count",
     "occupied_count",
     "non_recruit_count",
     "second_phase_count",

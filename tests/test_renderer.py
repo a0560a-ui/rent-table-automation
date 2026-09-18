@@ -96,6 +96,16 @@ def test_display_rent_excludes_common_service_fee():
     assert display_rent_excluding_fee(200000, 10000) == 190000
 
 
+def test_application_room_is_in_total_but_not_vacant(tmp_path):
+    data = make_sheets_data(4, 5)
+    data["rooms"][1][6] = "申込あり"
+    props = load_property_data_from_sheets(data)
+    pages = generate_image("P001", props, issue_date="2026年09月18日", output_dir=tmp_path)
+
+    assert pages[0]["status_text"] == "空室状況   6 / 13 戸"
+    assert "P001:101" in pages[0]["rendered_room_uids"]
+
+
 def test_second_phase_room_is_read_and_rendered(tmp_path):
     data = make_sheets_data(4, 5, second_phase_rooms={"501"})
     # 実運用で既存列の途中へ追加されても、ヘッダー名で正しく読み取る。

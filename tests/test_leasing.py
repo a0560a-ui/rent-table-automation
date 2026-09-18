@@ -19,13 +19,14 @@ def test_build_leasing_metrics_excludes_non_recruit_and_second_phase():
     metrics = build_leasing_metrics(
         "DF",
         "F001",
-        _prop(["空室", "空室", "満室", "非募集", "2期募集"]),
+        _prop(["空室", "空室", "申込", "満室", "非募集", "2期募集"]),
     )
 
     assert metrics["vacant_count"] == 2
     assert metrics["occupied_count"] == 1
-    assert metrics["leasing_target_count"] == 3
-    assert metrics["vacancy_rate"] == 66.7
+    assert metrics["application_count"] == 1
+    assert metrics["leasing_target_count"] == 4
+    assert metrics["vacancy_rate"] == 50.0
     assert metrics["non_recruit_count"] == 1
     assert metrics["second_phase_count"] == 1
 

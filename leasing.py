@@ -24,6 +24,7 @@ LEASING_FIELDS = [
     "vacant_count",
     "leasing_target_count",
     "vacancy_rate",
+    "application_count",
     "occupied_count",
     "non_recruit_count",
     "second_phase_count",
@@ -43,10 +44,11 @@ def build_leasing_metrics(brand: str, property_id: str, prop: dict) -> dict:
     """1物件の募集状況を、価格表と同じ住戸判定で集計する。"""
     rooms = housing_rooms(prop)
     vacant = sum(1 for room in rooms if room[4] == "空室")
+    application = sum(1 for room in rooms if room[4] == "申込")
     occupied = sum(1 for room in rooms if room[4] == "満室")
     non_recruit = sum(1 for room in rooms if room[4] == "非募集")
     second_phase = sum(1 for room in rooms if is_second_phase_room(room))
-    leasing_target = vacant + occupied
+    leasing_target = vacant + application + occupied
     vacancy_rate = round(vacant / leasing_target * 100, 1) if leasing_target else 0.0
     return {
         "brand": brand,
@@ -55,6 +57,7 @@ def build_leasing_metrics(brand: str, property_id: str, prop: dict) -> dict:
         "vacant_count": vacant,
         "leasing_target_count": leasing_target,
         "vacancy_rate": vacancy_rate,
+        "application_count": application,
         "occupied_count": occupied,
         "non_recruit_count": non_recruit,
         "second_phase_count": second_phase,
@@ -82,6 +85,7 @@ def _snapshot_rows(rows: list[dict]) -> list[dict]:
         "vacant_count",
         "leasing_target_count",
         "vacancy_rate",
+        "application_count",
         "occupied_count",
         "non_recruit_count",
         "second_phase_count",
@@ -224,6 +228,7 @@ def _dashboard_row(row: dict) -> str:
           <td><span class="badge priority-{escape(priority)}">{escape(priority)}</span></td>
           <td><strong>{escape(str(row.get("property_name", "")))}</strong><small>{escape(str(row.get("brand", "")))} / {escape(str(row.get("property_id", "")))}</small></td>
           <td class="number vacant">{int(row.get("vacant_count") or 0)}戸</td>
+          <td class="number">{int(row.get("application_count") or 0)}戸</td>
           <td class="number">{int(row.get("leasing_target_count") or 0)}戸</td>
           <td class="rate-cell"><strong>{rate:.1f}%</strong><span class="bar"><i style="width:{safe_width:.1f}%"></i></span></td>
           <td class="number change {_change_class(previous_change)}">{_change_label(previous_change)}</td>
@@ -331,13 +336,13 @@ def build_leasing_dashboard(
     </section>
     <div class="table-wrap">
       <table>
-        <thead><tr><th>優先度</th><th>物件</th><th>空室</th><th>募集対象</th><th>空室率</th><th>前回比</th><th>7日前比</th><th>2期募集</th><th>判定理由</th><th>確認</th></tr></thead>
+        <thead><tr><th>優先度</th><th>物件</th><th>空室</th><th>申込</th><th>募集対象</th><th>空室率</th><th>前回比</th><th>7日前比</th><th>2期募集</th><th>判定理由</th><th>確認</th></tr></thead>
         <tbody>
 {table_rows}
         </tbody>
       </table>
     </div>
-    <p class="notes">募集対象は「空室＋満室」です。非募集と2期募集は空室率から除外しています。要確認は「空室10戸以上」「空室率30%以上」「空室5戸以上かつ7日間減少なし」のいずれか、注意は「空室5戸以上」または「空室率20%以上」です。</p>
+    <p class="notes">募集対象は「空室＋申込＋満室」です。申込は空室に含めず、非募集と2期募集は空室率から除外しています。要確認は「空室10戸以上」「空室率30%以上」「空室5戸以上かつ7日間減少なし」のいずれか、注意は「空室5戸以上」または「空室率20%以上」です。</p>
   </main>
 </body>
 </html>

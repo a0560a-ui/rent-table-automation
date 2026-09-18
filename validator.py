@@ -63,6 +63,7 @@ def validate_property_data(prop_id, properties):
         )
 
     vacant = sum(1 for r in rooms if r[4] == "空室")
+    application = sum(1 for r in rooms if r[4] == "申込")
     occupied = sum(1 for r in rooms if r[4] == "満室")
     non_recruit = sum(1 for r in rooms if r[4] == "非募集")
     second_phase = sum(1 for r in rooms if is_second_phase_room(r))
@@ -76,11 +77,13 @@ def validate_property_data(prop_id, properties):
         f"🏢 階数: {min(floors)}〜{max(floors)}階（{len(floors)}階分）",
         f"🚪 総室数: {len(rooms)}室",
         f"   ├ 空室: {vacant}室",
+        f"   ├ 申込: {application}室",
         f"   ├ 満室: {occupied}室",
         f"   └ 非募集: {non_recruit}室",
         f"🔖 2期募集: {second_phase}室",
         f"📐 タイプ数: {len(defined_types)}種類 {sorted(defined_types)}",
-        f"🎯 募集対象: {vacant + occupied}室（空室{vacant} / 満室{occupied}）",
+        f"🎯 募集対象: {vacant + application + occupied}室"
+        f"（空室{vacant} / 申込{application} / 満室{occupied}）",
     ]
     return True, "\n".join(msg)
 

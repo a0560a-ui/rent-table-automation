@@ -53,6 +53,14 @@ def normalize_second_phase(value):
     }
 
 
+def normalize_status(value):
+    """運用上の表記ゆれを、描画・集計で使う正式な状態名へ統一する。"""
+    normalized = str(value or "").strip().replace(" ", "").replace("　", "")
+    if normalized in {"申込", "申込あり", "申込有", "申込み", "申し込み"}:
+        return "申込"
+    return normalized
+
+
 def _authorize_gspread():
     try:
         import gspread
@@ -205,7 +213,7 @@ def load_property_data_from_sheets(sheets_data):
             continue
         floor_value = room_value(row, "階", 1)
         rent_value = str(room_value(row, "賃料(共益費込)", 5)).replace(",", "")
-        raw_status = room_value(row, ("状態", "空室"), 6, "空室")
+        raw_status = normalize_status(room_value(row, ("状態", "空室"), 6, "空室"))
         second_phase_from_status = normalize_second_phase(raw_status)
         second_phase = second_phase_from_status or normalize_second_phase(
             room_value(row, ("2期募集", "２期募集", "二期募集"))

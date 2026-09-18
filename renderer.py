@@ -139,7 +139,7 @@ def _column_parts(column):
 def _cell_bg(status):
     if status == "空室":
         return COLOR_VACANT_BG
-    if status == "満室":
+    if status in {"申込", "満室"}:
         return COLOR_GREIGE_LIGHT
     if status == "2期募集":
         return COLOR_NON_RECRUIT_BG
@@ -155,7 +155,7 @@ def _format_area(area):
 
 
 def _room_band_fill(status):
-    if status in {"空室", "2期募集"}:
+    if status in {"空室", "申込", "2期募集"}:
         return COLOR_GOLD_LIGHT
     if status == "満室":
         return COLOR_OCCUPIED_BG
@@ -229,6 +229,19 @@ def _draw_room(draw, x, y, room_col_w, row_h, room, type_info, layout, metrics, 
             center_x,
             main_center_y,
             "2期募集",
+            layout["font_price"],
+            layout["min_font"],
+            room_col_w - 8,
+            COLOR_GOLD,
+            bold=True,
+            metrics=metrics,
+        )
+    elif status == "申込":
+        _fit_and_draw_centered(
+            draw,
+            center_x,
+            main_center_y,
+            "申込",
             layout["font_price"],
             layout["min_font"],
             room_col_w - 8,
@@ -411,8 +424,9 @@ def render_property_page(prop, page, layout, page_number=1, total_pages=1, issue
 
     all_rooms = housing_rooms(prop)
     vacant_count = sum(1 for r in all_rooms if r[4] == "空室")
+    application_count = sum(1 for r in all_rooms if r[4] == "申込")
     occupied_count = sum(1 for r in all_rooms if r[4] == "満室")
-    total_recruit = vacant_count + occupied_count
+    total_recruit = vacant_count + application_count + occupied_count
     font_status = load_font(layout["font_status"], bold=True)
     status_text = f"空室状況   {vacant_count} / {total_recruit} 戸"
     draw_centered(draw, W // 2, y_cursor, status_text, font_status, COLOR_GOLD)
