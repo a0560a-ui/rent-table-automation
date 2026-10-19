@@ -11,6 +11,8 @@ from pathlib import Path
 import sys
 from zoneinfo import ZoneInfo
 
+import jpholiday
+
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
@@ -48,8 +50,17 @@ def _issue_date_for_brand(brand, args):
         return args.issue_date
     issue_day = args.now_jst.date()
     if brand in {"DF", "デュオフラッツ"}:
-        issue_day -= timedelta(days=(issue_day.weekday() - 3) % 7)
+        thursday = issue_day - timedelta(days=(issue_day.weekday() - 3) % 7)
+        issue_day = _next_business_day(thursday)
+        if issue_day > args.now_jst.date():
+            issue_day = _next_business_day(thursday - timedelta(days=7))
     return issue_day.strftime("%Y年%m月%d日")
+
+
+def _next_business_day(day):
+    while day.weekday() >= 5 or jpholiday.is_holiday(day):
+        day += timedelta(days=1)
+    return day
 
 
 def update_brand(brand, args):
@@ -60,8 +71,6 @@ def update_brand(brand, args):
     for prop_id in prop_ids:
         prop = properties[prop_id]
         issue_date = _issue_date_for_brand(brand, args)
-        if brand in {"DF", "デュオフラッツ"}:
-            prop["update_frequency_note"] = "デュオフラッツの価格表は毎週木曜日更新です。"
         output_dir = args.output_dir / brand / prop_id
         leasing_metrics = build_leasing_metrics(brand, prop_id, prop)
         try:
