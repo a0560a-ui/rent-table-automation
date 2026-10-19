@@ -465,6 +465,7 @@ def render_property_page(prop, page, layout, page_number=1, total_pages=1, issue
             footer_y += 25
     disclaimer_lines = (
         f"本賃料表の記載内容は{base_issue_date}時点の情報です。",
+        *((prop["update_frequency_note"],) if prop.get("update_frequency_note") else ()),
         "今後、諸条件等により変更となる場合がございますので、あらかじめご了承ください。",
     )
     disclaimer_text = "".join(disclaimer_lines)

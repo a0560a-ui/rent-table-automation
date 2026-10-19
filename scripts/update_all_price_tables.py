@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import argparse
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 import sys
 from zoneinfo import ZoneInfo
@@ -43,6 +43,15 @@ def _write_reports(report_rows, report_dir):
     return write_json_csv_reports(report_rows, report_dir)
 
 
+def _issue_date_for_brand(brand, args):
+    if args.issue_date:
+        return args.issue_date
+    issue_day = args.now_jst.date()
+    if brand in {"DF", "デュオフラッツ"}:
+        issue_day -= timedelta(days=(issue_day.weekday() - 3) % 7)
+    return issue_day.strftime("%Y年%m月%d日")
+
+
 def update_brand(brand, args):
     sheets_data = fetch_sheets_data(brand=brand)
     properties = load_property_data_from_sheets(sheets_data)
@@ -50,13 +59,16 @@ def update_brand(brand, args):
     rows = []
     for prop_id in prop_ids:
         prop = properties[prop_id]
+        issue_date = _issue_date_for_brand(brand, args)
+        if brand in {"DF", "デュオフラッツ"}:
+            prop["update_frequency_note"] = "デュオフラッツの価格表は毎週木曜日更新です。"
         output_dir = args.output_dir / brand / prop_id
         leasing_metrics = build_leasing_metrics(brand, prop_id, prop)
         try:
             success, message = validate_property_data(prop_id, properties)
             if not success:
                 raise ValueError(message)
-            pages = generate_image(prop_id, properties, issue_date=args.issue_date, output_dir=output_dir)
+            pages = generate_image(prop_id, properties, issue_date=issue_date, output_dir=output_dir)
             uploaded = []
             page_info = {"path": "", "url": "", "image_count": 0}
             if not args.dry_run:
@@ -77,7 +89,7 @@ def update_brand(brand, args):
                     active_urls,
                     args.site_dir,
                     base_url=args.site_base_url,
-                    issue_date=args.issue_date,
+                    issue_date=issue_date,
                     cache_buster=args.cache_buster,
                 )
             rendered_room_count = sum(len(page["rendered_room_uids"]) for page in pages)
@@ -128,7 +140,7 @@ def main():
     parser = argparse.ArgumentParser(description="全物件の価格表を週次更新します")
     parser.add_argument("--brands", nargs="+", default=["DM", "DF"], choices=["DM", "DF", "デュオメゾン", "デュオフラッツ"])
     parser.add_argument("--property-ids", nargs="*", default=None)
-    parser.add_argument("--issue-date", default=now_jst.strftime("%Y年%m月%d日"))
+    parser.add_argument("--issue-date", default=None, help="全ブランド共通で表示する日付（省略時はブランドごとの更新日）")
     parser.add_argument("--output-dir", type=Path, default=OUTPUT_DIR / "batch")
     parser.add_argument("--site-dir", type=Path, default=SITE_DIR)
     parser.add_argument("--site-base-url", default=public_site_base_url() or "")
@@ -138,6 +150,7 @@ def main():
     parser.add_argument("--dry-run", action="store_true", help="ImageKitへアップロードせず画像生成と検証だけ行う")
     parser.add_argument("--allow-partial", action="store_true", help="一部物件が失敗しても成功物件の公開処理を継続する")
     args = parser.parse_args()
+    args.now_jst = now_jst
 
     all_rows = []
     for brand in args.brands:
