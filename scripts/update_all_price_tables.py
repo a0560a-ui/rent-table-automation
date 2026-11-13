@@ -20,11 +20,11 @@ if str(PROJECT_ROOT) not in sys.path:
 from config import MAX_FIXED_PAGE_SLOTS, OUTPUT_DIR, SITE_DIR, public_site_base_url  # noqa: E402
 from imagekit import upload_fixed_page_set  # noqa: E402
 from leasing import build_leasing_dashboard, build_leasing_metrics, fetch_previous_leasing_data  # noqa: E402
-from reporting import build_public_update_report, write_json_csv_reports  # noqa: E402
+from reporting import build_public_update_report, fetch_previous_update_rows, write_json_csv_reports  # noqa: E402
 from renderer import generate_image, render_placeholder_page  # noqa: E402
 from sheets import fetch_sheets_data, load_property_data_from_sheets  # noqa: E402
 from html_pages import build_property_page  # noqa: E402
-from validator import housing_rooms, validate_property_data  # noqa: E402
+from validator import housing_rooms, validate_property_data, validate_sheet_data  # noqa: E402
 
 
 JST = ZoneInfo("Asia/Tokyo")
@@ -57,6 +57,65 @@ def _issue_date_for_brand(brand, args):
     return issue_day.strftime("%Y年%m月%d日")
 
 
+def _failure_row(brand, prop_id, prop_name, error, prop=None):
+    return {
+        "brand": brand,
+        "property_id": prop_id,
+        "property_name": prop_name,
+        "status": "failed",
+        "page_count": 0,
+        "input_room_count": len(housing_rooms(prop)) if prop else 0,
+        "rendered_room_count": 0,
+        "split_direction": "",
+        "template": "",
+        "files": [],
+        "urls": [],
+        "page_path": "",
+        "page_url": "",
+        "error": error,
+        "vacant_count": 0,
+        "leasing_target_count": 0,
+        "vacancy_rate": 0,
+        "application_count": 0,
+        "occupied_count": 0,
+        "non_recruit_count": 0,
+        "second_phase_count": 0,
+    }
+
+
+def _restore_previous_pages(rows, brand, args, property_ids=None):
+    if getattr(args, "dry_run", False):
+        return
+    old_rows = {
+        row.get("property_id"): row
+        for row in getattr(args, "previous_update_rows", [])
+        if row.get("brand") == brand and row.get("status") == "success"
+    }
+    current_rows = rows if property_ids is None else [
+        row for row in rows if row.get("property_id") in property_ids
+    ]
+    for row in current_rows:
+        old = old_rows.get(row.get("property_id"))
+        if row.get("status") != "failed" or not old:
+            continue
+        old_urls = old.get("urls") or []
+        page_count = int(old.get("page_count") or 0)
+        if not old_urls or page_count <= 0:
+            continue
+        name = row.get("property_name") or old.get("property_name", "")
+        page_info = build_property_page(
+            row["property_id"],
+            name,
+            old_urls[:page_count],
+            args.site_dir,
+            base_url=args.site_base_url,
+            cache_buster=args.cache_buster,
+        )
+        row["property_name"] = name
+        row["page_path"] = page_info["path"]
+        row["page_url"] = page_info["url"]
+
+
 def _next_business_day(day):
     while day.weekday() >= 5 or jpholiday.is_holiday(day):
         day += timedelta(days=1)
@@ -65,10 +124,39 @@ def _next_business_day(day):
 
 def update_brand(brand, args):
     sheets_data = fetch_sheets_data(brand=brand)
+    sheet_issues = validate_sheet_data(sheets_data)
+    if "(シート構成)" in sheet_issues:
+        rows = [
+            _failure_row(brand, prop_id, issue["property_name"], "\n".join(issue["errors"]))
+            for prop_id, issue in sheet_issues.items()
+        ]
+        old_rows = [
+            {"property_id": old["property_id"], "property_name": old.get("property_name", ""), "status": "failed"}
+            for old in getattr(args, "previous_update_rows", [])
+            if old.get("brand") == brand and old.get("status") == "success"
+        ]
+        _restore_previous_pages(old_rows, brand, args)
+        return rows
     properties = load_property_data_from_sheets(sheets_data)
     prop_ids = _target_property_ids(properties, args.property_ids)
-    rows = []
+    diagnostics = {
+        prop_id: issue
+        for prop_id, issue in sheet_issues.items()
+        if not args.property_ids or prop_id in args.property_ids
+    }
+    rows = [
+        _failure_row(
+            brand,
+            prop_id,
+            issue["property_name"],
+            "\n".join(issue["errors"]),
+            properties.get(prop_id),
+        )
+        for prop_id, issue in diagnostics.items()
+    ]
     for prop_id in prop_ids:
+        if prop_id in diagnostics:
+            continue
         prop = properties[prop_id]
         issue_date = _issue_date_for_brand(brand, args)
         output_dir = args.output_dir / brand / prop_id
@@ -122,25 +210,10 @@ def update_brand(brand, args):
                 }
             )
         except Exception as exc:
-            rows.append(
-                {
-                    "brand": brand,
-                    "property_id": prop_id,
-                    "property_name": prop.get("name", ""),
-                    "status": "failed",
-                    "page_count": 0,
-                    "input_room_count": len(housing_rooms(prop)),
-                    "rendered_room_count": 0,
-                    "split_direction": "",
-                    "template": "",
-                    "files": [],
-                    "urls": [],
-                    "page_path": "",
-                    "page_url": "",
-                    "error": str(exc),
-                    **leasing_metrics,
-                }
-            )
+            failed_row = _failure_row(brand, prop_id, prop.get("name", ""), str(exc), prop)
+            failed_row.update(leasing_metrics)
+            rows.append(failed_row)
+    _restore_previous_pages(rows, brand, args)
     return rows
 
 
@@ -160,6 +233,7 @@ def main():
     parser.add_argument("--allow-partial", action="store_true", help="一部物件が失敗しても成功物件の公開処理を継続する")
     args = parser.parse_args()
     args.now_jst = now_jst
+    args.previous_update_rows = fetch_previous_update_rows(args.site_base_url)
 
     all_rows = []
     for brand in args.brands:

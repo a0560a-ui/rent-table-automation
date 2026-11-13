@@ -9,6 +9,8 @@ import json
 from datetime import datetime
 from html import escape
 from pathlib import Path
+from urllib.error import HTTPError, URLError
+from urllib.request import Request, urlopen
 
 
 REPORT_FIELDS = [
@@ -36,6 +38,19 @@ REPORT_FIELDS = [
 
 def _join_url(base_url: str, path: str) -> str:
     return f"{base_url.rstrip('/')}/{path.lstrip('/')}"
+
+
+def fetch_previous_update_rows(base_url: str | None, timeout: float = 10.0) -> list[dict]:
+    if not base_url:
+        return []
+    url = _join_url(base_url, "reports/latest.json")
+    request = Request(url, headers={"Cache-Control": "no-cache", "User-Agent": "rent-table-automation"})
+    try:
+        with urlopen(request, timeout=timeout) as response:
+            rows = json.loads(response.read().decode("utf-8"))
+        return rows if isinstance(rows, list) else []
+    except (HTTPError, URLError, TimeoutError, json.JSONDecodeError, UnicodeDecodeError):
+        return []
 
 
 def _status_label(status: str) -> str:

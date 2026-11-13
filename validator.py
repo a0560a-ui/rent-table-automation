@@ -4,7 +4,10 @@
 
 from __future__ import annotations
 
+import math
+
 from config import ALLOWED_STATUSES, CANVAS_HEIGHT, CANVAS_WIDTH
+from sheets import normalize_second_phase, normalize_status, normalize_type_key
 
 
 def housing_rooms(prop):
@@ -13,6 +16,182 @@ def housing_rooms(prop):
 
 def room_uid(prop_id, room):
     return f"{prop_id}:{room[1]}"
+
+
+def validate_sheet_data(sheets_data):
+    """Return spreadsheet-level and property-level input errors before parsing."""
+    issues = {}
+    required = {
+        "properties": {"物件ID", "物件名（正式）"},
+        "types": {"物件ID", "タイプ", "間取り", "専有面積(㎡)", "共益費", "表示順序"},
+        "rooms": {"物件ID", "階", "部屋番号", "タイプ", "賃料(共益費込)", "区分"},
+    }
+    headers = {}
+    for key, columns in required.items():
+        values = sheets_data.get(key) or []
+        headers[key] = values[0] if values else []
+        if not values:
+            _add_sheet_issue(issues, f"「{key}」シートを読み込めません。")
+            continue
+        missing = sorted(columns - set(headers[key]))
+        if key == "rooms" and "状態" not in headers[key] and "空室" in headers[key]:
+            missing = [column for column in missing if column != "状態"]
+        if key == "rooms" and "状態" not in headers[key] and "空室" not in headers[key]:
+            missing.append("状態または空室")
+        if missing:
+            _add_sheet_issue(issues, f"「{key}」シートに必須列がありません: {missing}")
+    if issues:
+        return issues
+
+    property_headers = headers["properties"]
+    property_id_col = property_headers.index("物件ID")
+    property_name_col = property_headers.index("物件名（正式）")
+    properties = {}
+    for row_number, row in enumerate(sheets_data["properties"][1:], start=2):
+        if not any(str(value or "").strip() for value in row):
+            continue
+        prop_id = _cell(row, property_id_col)
+        name = _cell(row, property_name_col)
+        if not prop_id:
+            _add_issue(issues, "(物件IDなし)", name, f"物件マスター {row_number}行目: 物件IDが空欄です。")
+            continue
+        if prop_id in properties:
+            _add_issue(issues, prop_id, name, "物件マスターに同じ物件IDが重複しています。")
+        properties[prop_id] = name
+        if not name:
+            _add_issue(issues, prop_id, name, "物件名（正式）が空欄です。")
+    if not properties:
+        _add_sheet_issue(issues, "物件マスターに物件の登録がありません。")
+        return issues
+
+    type_headers = headers["types"]
+    type_id_col = type_headers.index("物件ID")
+    type_key_col = type_headers.index("タイプ")
+    seen_types = set()
+    for row_number, row in enumerate(sheets_data["types"][1:], start=2):
+        if not any(str(value or "").strip() for value in row):
+            continue
+        prop_id = _cell(row, type_id_col)
+        type_key = normalize_type_key(_cell(row, type_key_col))
+        if not prop_id:
+            _add_issue(issues, "(物件IDなし)", "", f"タイプ定義 {row_number}行目: 物件IDが空欄です。")
+            continue
+        if prop_id not in properties:
+            _add_issue(issues, prop_id, "", "タイプ定義にありますが、物件マスターに物件IDがありません。")
+            continue
+        if not type_key:
+            _add_issue(issues, prop_id, properties[prop_id], f"タイプ定義 {row_number}行目: タイプが空欄です。")
+            continue
+        for column in ("間取り", "専有面積(㎡)", "共益費", "表示順序"):
+            if column not in type_headers:
+                continue
+            value = _cell(row, type_headers.index(column)).replace(",", "")
+            try:
+                if column == "間取り":
+                    if not value:
+                        raise ValueError
+                else:
+                    number = float(value)
+                    if not math.isfinite(number):
+                        raise ValueError
+                    if number < 0:
+                        raise ValueError
+                    if column == "専有面積(㎡)" and number <= 0:
+                        raise ValueError
+                    if column == "表示順序" and (number <= 0 or not number.is_integer()):
+                        raise ValueError
+                    if column == "共益費" and not number.is_integer():
+                        raise ValueError
+            except (ValueError, TypeError):
+                requirement = "空欄不可" if column == "間取り" else "0より大きい数" if column in {"専有面積(㎡)", "表示順序"} else "0以上の数"
+                _add_issue(issues, prop_id, properties[prop_id], f"タイプ定義 {row_number}行目: {column}は{requirement}で入力してください（{value or '空欄'}）。")
+        type_uid = (prop_id, type_key)
+        if type_uid in seen_types:
+            _add_issue(issues, prop_id, properties[prop_id], f"タイプ定義でタイプ「{type_key}」が重複しています。")
+        seen_types.add(type_uid)
+
+    room_headers = headers["rooms"]
+    room_id_col = room_headers.index("物件ID")
+    room_number_col = room_headers.index("部屋番号")
+    room_floor_col = room_headers.index("階")
+    room_type_col = room_headers.index("タイプ")
+    room_rent_col = room_headers.index("賃料(共益費込)")
+    room_category_col = room_headers.index("区分")
+    status_col = room_headers.index("状態") if "状態" in room_headers else room_headers.index("空室")
+    seen_rooms = set()
+    housing_counts = {prop_id: 0 for prop_id in properties}
+    for row_number, row in enumerate(sheets_data["rooms"][1:], start=2):
+        if not any(str(value or "").strip() for value in row):
+            continue
+        prop_id = _cell(row, room_id_col)
+        room_no = _cell(row, room_number_col)
+        if not prop_id:
+            _add_issue(issues, "(物件IDなし)", "", f"部屋マスター {row_number}行目: 物件IDが空欄です。")
+            continue
+        if prop_id not in properties:
+            _add_issue(issues, prop_id, "", "部屋マスターにありますが、物件マスターに物件IDがありません。")
+            continue
+        category = _cell(row, room_category_col)
+        if not category:
+            _add_issue(issues, prop_id, properties[prop_id], f"部屋マスター {row_number}行目: 区分が空欄です。")
+            continue
+        if category != "住戸":
+            continue
+        housing_counts[prop_id] += 1
+        if not room_no:
+            _add_issue(issues, prop_id, properties[prop_id], f"部屋マスター {row_number}行目: 部屋番号が空欄です。")
+        else:
+            room_uid = (prop_id, room_no)
+            if room_uid in seen_rooms:
+                _add_issue(issues, prop_id, properties[prop_id], f"部屋番号「{room_no}」が重複しています。")
+            seen_rooms.add(room_uid)
+        _validate_numeric_cell(issues, prop_id, properties[prop_id], row, room_floor_col, "階", row_number, integer=True, positive=True)
+        _validate_numeric_cell(issues, prop_id, properties[prop_id], row, room_rent_col, "賃料", row_number, integer=True, positive=True)
+        if not _cell(row, room_type_col):
+            _add_issue(issues, prop_id, properties[prop_id], f"部屋マスター {row_number}行目: タイプが空欄です。")
+        raw_status = normalize_status(_cell(row, status_col))
+        if normalize_second_phase(raw_status):
+            raw_status = "2期募集"
+        if raw_status not in ALLOWED_STATUSES:
+            _add_issue(issues, prop_id, properties[prop_id], f"部屋マスター {row_number}行目: 募集状況が不正です（{raw_status or '空欄'}）。")
+
+    for prop_id, name in properties.items():
+        if not housing_counts[prop_id]:
+            _add_issue(issues, prop_id, name, "部屋マスターに住戸がありません。新規物件は住戸データを登録してください。")
+    return issues
+
+
+def _cell(row, index):
+    return str(row[index] or "").strip() if len(row) > index else ""
+
+
+def _add_sheet_issue(issues, message):
+    _add_issue(issues, "(シート構成)", "", message)
+
+
+def _add_issue(issues, prop_id, name, message):
+    item = issues.setdefault(prop_id, {"property_name": name, "errors": []})
+    if name and not item["property_name"]:
+        item["property_name"] = name
+    if message not in item["errors"]:
+        item["errors"].append(message)
+
+
+def _validate_numeric_cell(issues, prop_id, name, row, index, label, row_number, integer=False, positive=False):
+    value = _cell(row, index).replace(",", "")
+    try:
+        number = float(value)
+        if not math.isfinite(number):
+            raise ValueError
+        if integer and not number.is_integer():
+            raise ValueError
+        if positive and number <= 0:
+            raise ValueError
+        if not positive and number < 0:
+            raise ValueError
+    except (ValueError, TypeError):
+        requirement = "正の整数" if positive and integer else "正の数" if positive else "0以上の数"
+        _add_issue(issues, prop_id, name, f"部屋マスター {row_number}行目: {label}は{requirement}で入力してください（{value or '空欄'}）。")
 
 
 def is_second_phase_room(room):

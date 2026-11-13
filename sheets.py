@@ -61,6 +61,16 @@ def normalize_status(value):
     return normalized
 
 
+def _numeric_or_zero(value, integer=False):
+    try:
+        number = float(value)
+        if integer and not number.is_integer():
+            return 0
+        return int(number) if integer else number
+    except (OverflowError, TypeError, ValueError):
+        return 0
+
+
 def _authorize_gspread():
     try:
         import gspread
@@ -161,7 +171,7 @@ def load_property_data_from_sheets(sheets_data):
     for row in sheets_data["properties"][1:]:
         if not row or not row[0]:
             continue
-        prop_id = row[0]
+        prop_id = str(row[0]).strip()
         properties[prop_id] = {
             "name": property_value(row, "物件名（正式）", 1),
             "aliases": property_value(row, "略称（カンマ区切り）", 2).split(",")
@@ -180,16 +190,16 @@ def load_property_data_from_sheets(sheets_data):
     for row in sheets_data["types"][1:]:
         if not row or not row[0]:
             continue
-        prop_id = row[0]
+        prop_id = str(row[0]).strip()
         if prop_id not in properties:
             continue
         type_key = normalize_type_key(row[1])
         properties[prop_id]["types"][type_key] = (
             normalize_type_key(row[6]) if len(row) > 6 and row[6] else type_key,
             row[2] if len(row) > 2 else "",
-            float(row[3]) if len(row) > 3 and row[3] else 0,
-            int(float(row[4])) if len(row) > 4 and row[4] else 0,
-            int(float(row[5])) if len(row) > 5 and row[5] else 0,
+            _numeric_or_zero(row[3], integer=False) if len(row) > 3 else 0,
+            _numeric_or_zero(row[4], integer=True) if len(row) > 4 else 0,
+            _numeric_or_zero(row[5], integer=True) if len(row) > 5 else 0,
         )
 
     room_headers = sheets_data["rooms"][0] if sheets_data.get("rooms") else []
@@ -206,7 +216,7 @@ def load_property_data_from_sheets(sheets_data):
         return default
 
     for row in sheets_data["rooms"][1:]:
-        prop_id = room_value(row, "物件ID", 0)
+        prop_id = str(room_value(row, "物件ID", 0)).strip()
         if not row or not prop_id:
             continue
         if prop_id not in properties:
@@ -220,10 +230,10 @@ def load_property_data_from_sheets(sheets_data):
         )
         properties[prop_id]["rooms"].append(
             (
-                int(floor_value) if str(floor_value).isdigit() else 0,
-                room_value(row, "部屋番号", 2),
+                _numeric_or_zero(floor_value, integer=True),
+                str(room_value(row, "部屋番号", 2)).strip(),
                 normalize_type_key(room_value(row, "タイプ", 3)),
-                int(float(rent_value)) if rent_value.replace(".", "", 1).isdigit() else 0,
+                _numeric_or_zero(rent_value, integer=True),
                 "2期募集" if second_phase else raw_status,
                 room_value(row, "区分", 8, "住戸"),
                 second_phase,
